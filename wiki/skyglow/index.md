@@ -6,6 +6,7 @@ Skyglow turns one software-defined radio attached to a Mac into a private observ
 
 [Open Skyglow](https://skyglow.ramideltoro.com){ .md-button .md-button--primary }
 [Browse the source](https://github.com/ramideltoro/skyglow){ .md-button }
+[Antenna Observatory wiki](https://wiki.antenna.ramideltoro.com){ .md-button }
 
 ```mermaid
 flowchart LR

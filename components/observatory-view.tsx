@@ -27,6 +27,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SkyMap from "@/components/sky-map";
 import PushAlerts from "@/components/push-alerts";
+import SiteFooter from "@/components/site-footer";
 import {
   Aircraft,
   ListenBand,
@@ -677,17 +678,7 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
           </p>
         </TabsContent>
       </Tabs>
-      <footer className="site-footer">
-        <span>RECEIVED HERE. SAVED HERE.</span>
-        <div className="site-footer-links">
-          <a href="https://docs.ramideltoro.com/skyglow/" target="_blank" rel="noreferrer">
-            Project wiki <ArrowUpRight size={13} />
-          </a>
-          <a href="https://antenna.ramideltoro.com" target="_blank" rel="noreferrer">
-            Receiver diagnostics <ArrowUpRight size={13} />
-          </a>
-        </div>
-      </footer>
+      <SiteFooter />
       <Sheet open={modeSheet} onOpenChange={setModeSheet}>
         <SheetContent side="bottom" className="control-sheet">
           <SheetTitle>Choose your wavelength</SheetTitle>

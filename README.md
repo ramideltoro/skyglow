@@ -38,7 +38,7 @@ The Python receiver tests run with `pnpm test`. Local installation and ServerChe
 
 ## Documentation
 
-Architecture, receiver modes, security, operations, troubleshooting, and release history are in the [Skyglow wiki](https://docs.ramideltoro.com/skyglow/).
+Architecture, receiver modes, security, operations, troubleshooting, and release history are in the independent [Skyglow wiki](https://wiki.skyglow.ramideltoro.com). Aircraft receiver documentation is available in the related [Antenna Observatory wiki](https://wiki.antenna.ramideltoro.com).
 
 ## License
 

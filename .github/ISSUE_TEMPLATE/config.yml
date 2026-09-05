@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/ramideltoro/skyglow/security/advisories/new
     about: Report vulnerabilities privately.
   - name: Skyglow wiki
-    url: https://docs.ramideltoro.com/skyglow/
+    url: https://wiki.skyglow.ramideltoro.com
     about: Read setup, operations, and troubleshooting documentation.

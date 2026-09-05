@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { RadioTower, ArrowRight } from "lucide-react";
 import { post } from "@/lib/skyglow";
+import SiteFooter from "@/components/site-footer";
 
 export default function LoginGate({
   children,
@@ -111,7 +112,7 @@ export default function LoginGate({
           </form>
         )}
       </section>
-      <p className="login-footer">Your receiver. Every wavelength.</p>
+      <SiteFooter />
     </main>
   );
 }

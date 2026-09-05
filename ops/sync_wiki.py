@@ -41,18 +41,17 @@ args = parser.parse_args()
 wiki_root = Path(args.wiki_repository).resolve()
 if not (wiki_root / '.git').is_dir() or not (wiki_root / 'mkdocs.yml').is_file():
     raise SystemExit('Expected a clone of the documentation repository')
-target = wiki_root / 'docs' / 'skyglow'
+target = wiki_root / 'docs'
 prior_release = target / 'project' / 'current-release.md'
 prior_text = prior_release.read_text() if prior_release.is_file() else ''
 match = re.search(r'<!-- release:([0-9a-f]{40}) -->', prior_text)
 previous = match.group(1) if match else None
 
-if target.exists():
-    history = (target / 'project' / 'release-history.md').read_text() if (target / 'project' / 'release-history.md').is_file() else ''
-    shutil.rmtree(target)
-else:
-    history = ''
-shutil.copytree(SOURCE, target)
+history = (target / 'project' / 'release-history.md').read_text() if (target / 'project' / 'release-history.md').is_file() else ''
+for markdown in target.rglob('*.md'):
+    if markdown.name != '404.md':
+        markdown.unlink()
+shutil.copytree(SOURCE, target, dirs_exist_ok=True)
 
 commit = os.environ.get('GITHUB_SHA') or git('rev-parse', 'HEAD')
 if not re.fullmatch(r'[0-9a-f]{40}', commit):
