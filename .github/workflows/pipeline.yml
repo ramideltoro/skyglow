@@ -1,0 +1,279 @@
+name: Skyglow pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: skyglow-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+  PYTHON_VERSION: "3.12"
+  PNPM_VERSION: "11.19.0"
+
+jobs:
+  web-quality:
+    name: Web quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+      - name: Install exact web dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check formatting
+        run: pnpm format:check
+      - name: Lint
+        run: pnpm lint
+      - name: Type check
+        run: pnpm typecheck
+
+  python-tests:
+    name: Python tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Install exact Python dependencies
+        run: pip install --requirement requirements-dev.txt
+      - name: Run receiver tests with branch coverage
+        env:
+          PYTHONPATH: server
+        run: |
+          coverage run --branch --source=server -m unittest discover -s server -p 'test_*.py'
+          coverage xml
+          coverage report --show-missing --fail-under=55
+      - name: Upload coverage report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: python-coverage
+          path: coverage.xml
+          if-no-files-found: error
+          retention-days: 14
+
+  dependency-security:
+    name: Dependency security
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+      - name: Audit JavaScript dependencies
+        run: pnpm audit --audit-level high
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - name: Audit Python dependencies
+        run: |
+          pip install pip-audit==2.9.0
+          python ops/audit_python.py
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Reject vulnerable dependency changes
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: always
+
+  secret-scan:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out complete history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Scan committed history
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    name: Production build
+    needs: [web-quality]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+      - name: Install exact web dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build production assets
+        run: pnpm build
+      - name: Enforce mobile bundle budget
+        run: pnpm bundle:check
+      - name: Upload immutable web artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: skyglow-web-${{ github.sha }}
+          path: dist/client
+          if-no-files-found: error
+          retention-days: 30
+
+  mobile-performance:
+    name: Mobile performance
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+      - name: Install exact web dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Download production assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: skyglow-web-${{ github.sha }}
+          path: dist/client
+      - name: Run mobile Lighthouse budgets
+        run: pnpm performance
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lighthouse-${{ github.sha }}
+          path: .lighthouseci
+          if-no-files-found: warn
+          retention-days: 14
+
+  deploy-production:
+    name: Deploy production
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [python-tests, dependency-security, secret-scan, build, mobile-performance]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: https://skyglow.ramideltoro.com
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download verified production assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: skyglow-web-${{ github.sha }}
+          path: dist/client
+      - name: Configure restricted production SSH identity
+        env:
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          SERVER_SSH_KNOWN_HOSTS: ${{ secrets.SERVER_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/skyglow_ci
+          chmod 600 ~/.ssh/skyglow_ci
+          printf '%s\n' "$SERVER_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<'EOF'
+          Host skyglow-production
+            HostName 65.75.201.18
+            User rami
+            IdentityFile ~/.ssh/skyglow_ci
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+          EOF
+          chmod 600 ~/.ssh/config
+      - name: Deploy timestamped VPS release
+        run: python3 ops/servercheap/deploy.py skyglow-production --skip-uplink
+
+  smoke-test:
+    name: Production smoke test
+    needs: [deploy-production]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify public interface and receiver path
+        run: |
+          curl --fail --silent --show-error --retry 6 --retry-delay 5 https://skyglow.ramideltoro.com/ | grep -q '<title>Skyglow</title>'
+          curl --fail --silent --show-error --retry 6 --retry-delay 5 https://skyglow.ramideltoro.com/api/session | python3 -c 'import json,sys; assert isinstance(json.load(sys.stdin)["authenticated"], bool)'
+
+  sync-wiki:
+    name: Document release
+    needs: [smoke-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out Skyglow history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Configure wiki deploy identity
+        env:
+          WIKI_DEPLOY_KEY: ${{ secrets.WIKI_DEPLOY_KEY }}
+          WIKI_SSH_KNOWN_HOSTS: ${{ secrets.WIKI_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$WIKI_DEPLOY_KEY" > ~/.ssh/skyglow_wiki
+          chmod 600 ~/.ssh/skyglow_wiki
+          printf '%s\n' "$WIKI_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Check out documentation repository
+        env:
+          GIT_SSH_COMMAND: ssh -i ~/.ssh/skyglow_wiki -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
+        run: git clone git@github.com:ramideltoro/antenna_observatory_wiki.git ../antenna-observatory-wiki
+      - name: Synchronize documentation and release record
+        run: python3 ops/sync_wiki.py ../antenna-observatory-wiki
+      - name: Publish documentation update
+        working-directory: ../antenna-observatory-wiki
+        env:
+          GIT_SSH_COMMAND: ssh -i ~/.ssh/skyglow_wiki -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
+        run: |
+          if git diff --quiet; then
+            echo 'Documentation is already current.'
+            exit 0
+          fi
+          git config user.name 'skyglow-doc-bot'
+          git config user.email 'skyglow-doc-bot@users.noreply.github.com'
+          git add docs/skyglow
+          git commit -m "docs(skyglow): publish ${GITHUB_SHA}"
+          git push origin main

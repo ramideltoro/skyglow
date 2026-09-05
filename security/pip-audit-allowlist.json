@@ -1,0 +1,23 @@
+{
+  "expires": "2026-10-01",
+  "reason": "The advisory database names future fixed releases that are not yet published on PyPI. Skyglow pins the newest available versions; affected HTTP clients make only application-controlled outbound requests or requests to an allowlisted push-service host.",
+  "advisories": [
+    "PYSEC-2026-2275",
+    "PYSEC-2026-142",
+    "PYSEC-2026-141",
+    "PYSEC-2026-237",
+    "PYSEC-2026-2104",
+    "PYSEC-2026-2112",
+    "PYSEC-2026-2111",
+    "PYSEC-2026-2113",
+    "PYSEC-2026-2109",
+    "PYSEC-2026-2110",
+    "PYSEC-2026-2108",
+    "PYSEC-2026-2105",
+    "PYSEC-2026-2106",
+    "PYSEC-2026-2107",
+    "PYSEC-2026-3545",
+    "PYSEC-2026-3546",
+    "PYSEC-2026-3547"
+  ]
+}

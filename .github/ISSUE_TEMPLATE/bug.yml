@@ -1,0 +1,42 @@
+name: Bug report
+description: Report a reproducible Skyglow problem without private receiver data.
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include passwords, cookies, precise receiver coordinates, recordings, or tunnel tokens.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        [
+          Live aircraft,
+          Replay,
+          Radio audio,
+          Satellite capture,
+          Sensors,
+          Login,
+          Deployment,
+          Documentation,
+        ]
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened?
+      description: Include the expected result and safe reproduction steps.
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      placeholder: iPhone 17, iOS 20, Safari
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted logs
+      render: shell

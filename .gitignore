@@ -1,0 +1,16 @@
+node_modules/
+.next/
+dist/
+.lighthouseci/
+coverage.xml
+.coverage
+htmlcov/
+*.tsbuildinfo
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log

@@ -1,0 +1,32 @@
+{
+	admin off
+	auto_https off
+}
+
+# Cloudflare Tunnel already forwards skyglow.ramideltoro.com to this loopback
+# listener. Static assets live on the VPS; receiver requests cross the private
+# reverse SSH tunnel maintained by the Mac.
+http://:8790 {
+	bind 127.0.0.1
+	encode zstd gzip
+	header {
+		-Server
+		Cache-Control no-store
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+	}
+
+	@receiver path /api/* /media/*
+	handle @receiver {
+		reverse_proxy http://127.0.0.1:18790 {
+			header_up Host __DOMAIN__
+		}
+	}
+
+	handle {
+		root * {$HOME}/skyglow/current/site
+		try_files {path} /index.html
+		file_server
+	}
+}

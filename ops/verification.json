@@ -1,0 +1,46 @@
+{
+  "checked_at": 1788497041.7031748,
+  "python_tests": 15,
+  "typescript": "passed",
+  "production_build": "passed",
+  "local_assets": "all returned HTTP 200",
+  "radio_handoffs": [
+    "aircraft to audio (AAC HLS, mono 24 kHz)",
+    "audio to sensors",
+    "sensors to Meteor LRPT capture",
+    "satellite to aircraft (fresh JSON)"
+  ],
+  "sensor_readings_observed": 0,
+  "satellite_image_observed": false,
+  "native_iphone_tested": false,
+  "automatic_return": "passed after 60 seconds; aircraft data age 0.12 seconds",
+  "installed_service": "local.skyglow.web",
+  "public_hostname": "skyglow.ramideltoro.com",
+  "dns_route": "created successfully in Cloudflare",
+  "public_http": "login page available; data requires authentication",
+  "public_snapshot": "401 without login; authenticated account has full controls",
+  "public_mode_change": "401 without login",
+  "authentication": "one shared account; pairing removed",
+  "local_and_remote_login": "login, incorrect credentials, session cookie, logout verified",
+  "map_fix": {
+    "checked_at": 1788497371.0157728,
+    "provider": "OpenStreetMap",
+    "api_key_required": false,
+    "typescript": "passed",
+    "production_build": "passed",
+    "tile": "HTTP 200; visually confirmed Tampa map imagery",
+    "local_and_public_assets": "match updated build",
+    "receiver_service_restarted": false
+  },
+  "weather_audio": {
+    "checked_at": 1788498953.322399,
+    "frequency": 162.55,
+    "modulation": "FM",
+    "raw_signal_peak_above_floor_db": 18.8,
+    "public_audio": "authenticated HLS segments downloaded and decoded",
+    "public_assets": "match new build",
+    "typescript": "passed",
+    "build": "passed",
+    "native_iphone_listening": "awaiting user confirmation"
+  }
+}
