@@ -1,6 +1,6 @@
 skyfield==1.55
 pywebpush==2.1.2
 cryptography==50.0.1
-requests==2.32.5
+requests==2.34.2
 urllib3==2.6.3
 aiohttp==3.13.5
