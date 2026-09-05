@@ -41,7 +41,7 @@ flowchart TD
 | Mac service     | `launchctl print gui/$(id -u)/local.skyglow.web`                                               |
 | Mac API         | `curl http://127.0.0.1:8790/api/session`                                                       |
 | SSH uplink      | `launchctl print gui/$(id -u)/local.skyglow.servercheap-uplink`                                |
-| VPS ports       | `ssh 65.75.201.18 'ss -ltn                                                                     | grep -E ":(8790 | 18790)"'` |
+| VPS ports       | `ssh 65.75.201.18 'ss -ltn "( sport = :8790 or sport = :18790 )"'`                             |
 | VPS API path    | `ssh 65.75.201.18 'curl -H "Host: skyglow.ramideltoro.com" http://127.0.0.1:8790/api/session'` |
 | Public API path | `curl https://skyglow.ramideltoro.com/api/session`                                             |
 
