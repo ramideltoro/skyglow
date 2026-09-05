@@ -1,7 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { RadioTower, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { post } from "@/lib/skyglow";
 
 export default function LoginGate({
@@ -49,7 +48,11 @@ export default function LoginGate({
         {authenticated === null ? (
           <div className="login-connecting">
             <p role="status">{error || "Connecting to your station…"}</p>
-            {error && <Button onClick={checkSession}>Try again</Button>}
+            {error && (
+              <button className="login-button" onClick={checkSession}>
+                Try again
+              </button>
+            )}
           </div>
         ) : (
           <form
@@ -101,10 +104,10 @@ export default function LoginGate({
                 {error}
               </p>
             )}
-            <Button type="submit" disabled={busy} className="login-submit">
+            <button type="submit" disabled={busy} className="login-button login-submit">
               {busy ? "Signing in…" : "Sign in"}
               <ArrowRight size={18} />
-            </Button>
+            </button>
           </form>
         )}
       </section>
