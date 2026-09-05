@@ -61,9 +61,15 @@ timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
 run_id = os.environ.get('GITHUB_RUN_ID')
 run_url = f'https://github.com/ramideltoro/skyglow/actions/runs/{run_id}' if run_id else 'https://github.com/ramideltoro/skyglow/actions'
 
-range_spec = f'{previous}..{commit}' if previous and previous != commit else commit
-commits = git('log', '--date=short', '--pretty=%H%x09%ad%x09%s', range_spec).splitlines()
-paths = git('diff-tree', '--root', '--no-commit-id', '--name-only', '-r', commit).splitlines() if not previous else git('diff', '--name-only', previous, commit).splitlines()
+if previous == commit:
+    commits = git('show', '-s', '--date=short', '--pretty=%H%x09%ad%x09%s', commit).splitlines()
+    paths = []
+elif previous:
+    commits = git('log', '--date=short', '--pretty=%H%x09%ad%x09%s', f'{previous}..{commit}').splitlines()
+    paths = git('diff', '--name-only', previous, commit).splitlines()
+else:
+    commits = git('show', '-s', '--date=short', '--pretty=%H%x09%ad%x09%s', commit).splitlines()
+    paths = git('diff-tree', '--root', '--no-commit-id', '--name-only', '-r', commit).splitlines()
 grouped = {}
 for path in paths:
     grouped.setdefault(category(path), []).append(path)

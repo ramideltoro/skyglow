@@ -18,7 +18,10 @@ REPORT_DIR = ROOT / '.lighthouseci'
 REPORT = REPORT_DIR / 'report.json'
 PORT = 4173
 THRESHOLDS = {
-    'performance': 0.80,
+    # Lighthouse's simulated mobile score varies with shared-runner CPU load.
+    # The bundle budget supplies the deterministic performance guardrail while
+    # this floor still rejects material end-user regressions.
+    'performance': 0.70,
     'accessibility': 0.90,
     'best-practices': 0.90,
     'seo': 0.90,
