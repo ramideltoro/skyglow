@@ -261,11 +261,11 @@ jobs:
       - name: Check out documentation repository
         env:
           GIT_SSH_COMMAND: ssh -i ~/.ssh/skyglow_wiki -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
-        run: git clone git@github.com:ramideltoro/antenna_observatory_wiki.git ../antenna-observatory-wiki
+        run: git clone git@github.com:ramideltoro/skyglow_wiki.git ../skyglow-wiki
       - name: Synchronize documentation and release record
-        run: python3 ops/sync_wiki.py ../antenna-observatory-wiki
+        run: python3 ops/sync_wiki.py ../skyglow-wiki
       - name: Publish documentation update
-        working-directory: ../antenna-observatory-wiki
+        working-directory: ../skyglow-wiki
         env:
           GIT_SSH_COMMAND: ssh -i ~/.ssh/skyglow_wiki -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
         run: |
@@ -275,6 +275,6 @@ jobs:
           fi
           git config user.name 'skyglow-doc-bot'
           git config user.email 'skyglow-doc-bot@users.noreply.github.com'
-          git add docs/skyglow
-          git commit -m "docs(skyglow): publish ${GITHUB_SHA}"
+          git add docs
+          git commit -m "docs: publish ${GITHUB_SHA}"
           git push origin main

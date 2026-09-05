@@ -56,11 +56,11 @@ gitGraph
 
 ## Documentation preview
 
-The Skyglow pages are published inside the shared Antenna Observatory MkDocs site. To preview the complete navigation, synchronize a local clone and run MkDocs:
+The Skyglow pages are published in their own MkDocs site. To preview the complete navigation, synchronize a local clone and run MkDocs:
 
 ```bash
-python3 ops/sync_wiki.py ../antenna_observatory_wiki
-cd ../antenna_observatory_wiki
+python3 ops/sync_wiki.py ../skyglow_wiki
+cd ../skyglow_wiki
 python3 -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt

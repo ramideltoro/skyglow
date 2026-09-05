@@ -66,7 +66,7 @@ The production SSH key is separate from the Mac’s operational key and has forw
 
 ## Automatic release notes
 
-After the public smoke test succeeds, `ops/sync_wiki.py` copies `wiki/skyglow` into the shared documentation site and generates:
+After the public smoke test succeeds, `ops/sync_wiki.py` copies `wiki/skyglow` into the independent Skyglow wiki and generates:
 
 - the exact deployed commit and workflow run;
 - commit messages since the previous documented release;

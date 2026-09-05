@@ -24,6 +24,7 @@
   --background: #0e0a05;
   --foreground: #fff8eb;
   --primary: #ffb547;
+  --gold-bright: #ffc96f;
   --primary-foreground: #251400;
   --secondary: #342719;
   --muted: #211a12;
@@ -48,7 +49,8 @@ body {
   line-height: 1.5;
   color: var(--foreground);
   background:
-    radial-gradient(circle at 50% -15%, #4b2d0d55 0, transparent 36rem), var(--background);
+    radial-gradient(circle at 72% -12%, rgb(255 172 55 / 24%) 0, transparent 34rem),
+    radial-gradient(circle at 4% 54%, rgb(185 73 20 / 10%) 0, transparent 32rem), var(--background);
   -webkit-font-smoothing: antialiased;
 }
 button,
@@ -144,9 +146,15 @@ input:disabled {
   opacity: 0.65;
 }
 .app-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   max-width: 1192px;
   margin: 0 auto;
   padding: 0 32px 32px;
+}
+.app-shell > .main-tabs {
+  flex: 1;
 }
 .masthead {
   height: 92px;
@@ -566,8 +574,8 @@ input:disabled {
 }
 .banner {
   padding: 16px 20px;
-  background: #1b2437;
-  border: 1px solid #374560;
+  background: #24180d;
+  border: 1px solid #5a3a1d;
   border-radius: 14px;
   display: flex;
   align-items: center;
@@ -614,12 +622,12 @@ body [data-slot="button"] {
   gap: 8px;
 }
 body [data-slot="sheet-overlay"] {
-  background: #030711b3;
+  background: #070401c7;
   backdrop-filter: blur(7px);
 }
 body .control-sheet {
-  background: #111b2b;
-  border: 1px solid #3a475c;
+  background: #171008;
+  border: 1px solid #533a20;
   border-radius: 24px 24px 0 0;
   max-height: 90dvh;
   overflow-y: auto;
@@ -932,7 +940,7 @@ body .control-sheet [data-slot="sheet-close"] {
   width: 100%;
   height: 170px;
   object-fit: contain;
-  background: #090e18;
+  background: #0b0703;
   border-radius: 9px;
 }
 .image-grid a > span {
@@ -1103,9 +1111,9 @@ body .control-sheet [data-slot="sheet-close"] {
     bottom: 0;
     left: 0;
     right: 0;
-    background: #0e1727f5 !important;
+    background: #120c06f5 !important;
     backdrop-filter: blur(18px);
-    border-top: 1px solid #334059;
+    border-top: 1px solid #51371f;
     padding: 8px 10px calc(8px + env(safe-area-inset-bottom)) !important;
     height: auto !important;
     gap: 1px !important;
@@ -1354,7 +1362,9 @@ body .control-sheet [data-slot="sheet-close"] {
   justify-content: center;
   gap: 32px;
   padding: calc(28px + env(safe-area-inset-top)) 20px calc(28px + env(safe-area-inset-bottom));
-  background: radial-gradient(ellipse at 50% 25%, #1c2a42 0%, #090e18 65%);
+  background:
+    radial-gradient(ellipse at 50% 20%, #4a2b0f 0%, transparent 48%),
+    linear-gradient(160deg, #110b05, #070503 72%);
 }
 .login-brand {
   display: flex;
@@ -1371,8 +1381,8 @@ body .control-sheet [data-slot="sheet-close"] {
 .login-card {
   width: 100%;
   max-width: 420px;
-  background: #111b2bed;
-  border: 1px solid #34435b;
+  background: #171009ed;
+  border: 1px solid #584024;
   border-radius: 22px;
   padding: 30px;
 }
@@ -1382,7 +1392,7 @@ body .control-sheet [data-slot="sheet-close"] {
   margin: 12px 0;
 }
 .login-description {
-  color: #aabbd3;
+  color: #cdbb9f;
   font-size: 15px;
   line-height: 1.6;
   margin-bottom: 30px;
@@ -1435,14 +1445,20 @@ body .control-sheet [data-slot="sheet-close"] {
   margin: 8px 0 16px;
 }
 .login-connecting {
-  color: #b6c5dc;
+  color: #d2bea0;
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
-.login-footer {
-  font-size: 13px;
-  color: #a99070;
+.login-page .site-footer {
+  width: min(420px, 100%);
+  padding-top: 4px;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 8px;
+}
+.login-page .site-footer-links {
+  justify-content: flex-start;
 }
 .account-box {
   display: flex;
