@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Skyglow: local radio controller, aircraft archive, and mobile web server."""
-import argparse, base64, collections, datetime as dt, hashlib, http.cookies, json, math, mimetypes, queue
-import os, secrets, shutil, signal, sqlite3, subprocess, threading, time, urllib.request
+import argparse, base64, collections, concurrent.futures, datetime as dt, hashlib, http.cookies, json, math, mimetypes, queue
+import os, re, secrets, shutil, signal, sqlite3, subprocess, threading, time, urllib.error, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs, unquote
+from urllib.parse import urlparse, parse_qs, quote, unquote
 from access import LoginStore
 
 HOME = Path.home()
@@ -17,10 +17,20 @@ PUBLIC = 'https://skyglow.ramideltoro.com'
 SERIAL = '96195546'
 MODES = ('aircraft', 'listen', 'satellite', 'sensors')
 WEATHER_CHANNELS = (162.400,162.425,162.450,162.475,162.500,162.525,162.550)
+ENRICHMENT_USER_AGENT = 'Skyglow/0.1 (https://skyglow.ramideltoro.com)'
 
 def read_json(p, default=None):
     try: return json.loads(Path(p).read_text())
     except (OSError, ValueError): return default
+
+def text_value(value, limit=160):
+    return str(value).strip()[:limit] if value is not None else ''
+
+def safe_remote_url(value, hosts):
+    try:
+        parsed=urlparse(str(value))
+        return str(value) if parsed.scheme=='https' and parsed.hostname in hosts else None
+    except (TypeError,ValueError):return None
 
 def finite(value, low, high, label):
     try: value = float(value)
@@ -61,6 +71,7 @@ class Observatory:
         self.lock=threading.RLock(); self.stop=threading.Event(); self.processes=[]; self.log_handle=None
         self.mode='aircraft'; self.since=time.time(); self.until=None; self.switching=False; self.error=None; self.options={}
         self.session_id=None; self.aircraft=[]; self.source_age=None; self.events=collections.deque(maxlen=30)
+        self.enrichment_cache={}
         self.passes={'passes':[],'message':'Loading orbital predictions…'}
         defaults=read_json(ORIGINAL/'settings.json',{})
         self.settings=read_json(self.state/'settings.json', {'name':'Skyglow','latitude':defaults.get('latitude'), 'longitude':defaults.get('longitude'),'alert_nm':5})
@@ -101,6 +112,70 @@ class Observatory:
         db=sqlite3.connect(self.dbfile, timeout=15); db.row_factory=sqlite3.Row; return db
 
     def event(self,text): self.events.appendleft({'t':time.time(),'text':text})
+
+    def cached_remote_json(self, key, url, ttl):
+        now=time.time()
+        with self.lock:
+            cached=self.enrichment_cache.get(key)
+            if cached and cached[0]>now:return cached[1]
+        try:
+            request=urllib.request.Request(url,headers={'Accept':'application/json','User-Agent':ENRICHMENT_USER_AGENT})
+            with urllib.request.urlopen(request,timeout=8) as response:
+                if response.headers.get('Content-Length') and int(response.headers['Content-Length'])>524288:
+                    raise ValueError('Metadata response is too large.')
+                data=json.loads(response.read(524289))
+                if not isinstance(data,dict):data={}
+            expires=now+ttl
+        except (OSError,ValueError,urllib.error.HTTPError,urllib.error.URLError):
+            data={};expires=now+300
+        with self.lock:
+            if len(self.enrichment_cache)>500:
+                self.enrichment_cache={k:v for k,v in self.enrichment_cache.items() if v[0]>now}
+            self.enrichment_cache[key]=(expires,data)
+        return data
+
+    def aircraft_details(self, hex_code, callsign=''):
+        hex_code=text_value(hex_code,7).lower()
+        callsign=text_value(callsign,10).upper().replace(' ','')
+        if not re.fullmatch(r'[0-9a-f]{6}',hex_code):raise ValueError('Enter a six-character ICAO address.')
+        if callsign and not re.fullmatch(r'[A-Z0-9]{2,8}',callsign):callsign=''
+        requests={
+            'aircraft':(f'aircraft:{hex_code}',f'https://api.adsbdb.com/v0/aircraft/{quote(hex_code)}',604800),
+            'photo':(f'photo:{hex_code}',f'https://api.planespotters.net/pub/photos/hex/{quote(hex_code)}',86400),
+        }
+        if callsign:requests['route']=(f'route:{callsign}',f'https://api.adsbdb.com/v0/callsign/{quote(callsign)}',21600)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(requests)) as pool:
+            futures={name:pool.submit(self.cached_remote_json,*spec) for name,spec in requests.items()}
+            remote={name:future.result() for name,future in futures.items()}
+        aircraft_response=remote.get('aircraft',{}).get('response',{})
+        route_response=remote.get('route',{}).get('response',{})
+        raw_aircraft=aircraft_response.get('aircraft',{}) if isinstance(aircraft_response,dict) else {}
+        raw_route=route_response.get('flightroute',{}) if isinstance(route_response,dict) else {}
+        photos=remote.get('photo',{}).get('photos',[])
+        aircraft=None
+        if isinstance(raw_aircraft,dict) and raw_aircraft:
+            aircraft={k:text_value(raw_aircraft.get(k)) for k in ('type','icao_type','manufacturer','mode_s','registration','registered_owner_country_iso_name','registered_owner_country_name','registered_owner_operator_flag_code','registered_owner')}
+            aircraft['photo']=safe_remote_url(raw_aircraft.get('url_photo'),{'image.airport-data.com'})
+        route=None
+        if isinstance(raw_route,dict) and raw_route:
+            route={k:text_value(raw_route.get(k)) for k in ('callsign','callsign_icao','callsign_iata')}
+            airline=raw_route.get('airline',{})
+            route['airline']={k:text_value(airline.get(k)) for k in ('name','icao','iata','country','country_iso','callsign')} if isinstance(airline,dict) else None
+            for end in ('origin','destination'):
+                airport=raw_route.get(end,{})
+                if not isinstance(airport,dict):route[end]=None;continue
+                route[end]={k:text_value(airport.get(k)) for k in ('country_iso_name','country_name','iata_code','icao_code','municipality','name')}
+                for key in ('elevation','latitude','longitude'):
+                    route[end][key]=airport.get(key) if isinstance(airport.get(key),(int,float)) else None
+        photo=None
+        if isinstance(photos,list) and photos and isinstance(photos[0],dict):
+            item=photos[0];large=item.get('thumbnail_large',{})
+            src=safe_remote_url(large.get('src') if isinstance(large,dict) else None,{'t.plnspttrs.net'})
+            link=safe_remote_url(item.get('link'),{'www.planespotters.net','planespotters.net'})
+            if src and link:photo={'src':src,'link':link,'photographer':text_value(item.get('photographer'),80)}
+        if not photo and aircraft and aircraft.get('photo'):
+            photo={'src':aircraft['photo'],'link':aircraft['photo'],'photographer':''}
+        return {'hex':hex_code.upper(),'callsign':callsign,'aircraft':aircraft,'route':route,'photo':photo}
 
     def save_settings(self, data):
         updated={'name':str(data.get('name','Skyglow')).strip()[:60] or 'Skyglow',
@@ -242,7 +317,7 @@ class Observatory:
                     for a in raw.get('aircraft',[]):
                         if a.get('seen',999)>15:continue
                         loc=all(isinstance(a.get(k),(int,float)) for k in ('lat','lon')) and a.get('seen_pos',999)<15
-                        item={'hex':a.get('hex',''),'flight':str(a.get('flight','')).strip(),'alt':a.get('alt_baro'),'speed':a.get('gs'),'track':a.get('track'),'lat':a.get('lat') if loc else None,'lon':a.get('lon') if loc else None,'distance':None,'bearing':None,'rssi':a.get('rssi')}
+                        item={'hex':a.get('hex',''),'flight':str(a.get('flight','')).strip(),'alt':a.get('alt_baro'),'alt_geom':a.get('alt_geom'),'speed':a.get('gs'),'ias':a.get('ias'),'tas':a.get('tas'),'mach':a.get('mach'),'track':a.get('track'),'track_rate':a.get('track_rate'),'mag_heading':a.get('mag_heading'),'true_heading':a.get('true_heading'),'baro_rate':a.get('baro_rate'),'geom_rate':a.get('geom_rate'),'squawk':a.get('squawk'),'emergency':a.get('emergency'),'category':a.get('category'),'nav_qnh':a.get('nav_qnh'),'nav_altitude':a.get('nav_altitude_mcp') or a.get('nav_altitude_fms'),'nav_heading':a.get('nav_heading'),'nav_modes':a.get('nav_modes') if isinstance(a.get('nav_modes'),list) else [],'registration':a.get('r'),'aircraft_type':a.get('t'),'description':a.get('desc'),'operator':a.get('ownOp'),'source':a.get('type'),'messages':a.get('messages'),'seen':a.get('seen'),'seen_pos':a.get('seen_pos'),'lat':a.get('lat') if loc else None,'lon':a.get('lon') if loc else None,'distance':None,'bearing':None,'rssi':a.get('rssi')}
                         if loc and self.settings.get('latitude') is not None:
                             item['distance'],item['bearing']=distance_bearing(self.settings['latitude'],self.settings['longitude'],a['lat'],a['lon'])
                         aircraft.append(item)
@@ -402,6 +477,7 @@ class Handler(BaseHTTPRequestHandler):
                 data=self.app.snapshot();data.update(can_control=True,local=self.local(),username=self.app.login.account['username']);return self.send(200,data)
             if path=='/api/health':return self.send(200,{'service':'skyglow','mode':self.app.mode})
             if path=='/api/push-key':return self.send(200,{'key':self.app.vapid_public})
+            if path=='/api/aircraft-details':return self.send(200,self.app.aircraft_details(q.get('hex',[''])[0],q.get('callsign',[''])[0]))
             if path=='/api/replay':return self.send(200,self.app.replay(q.get('start',[time.time()-86400])[0],q.get('end',[time.time()])[0]))
             if path=='/api/sensor-history':
                 sid=q.get('id',[''])[0]

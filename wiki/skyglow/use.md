@@ -28,10 +28,16 @@ flowchart TD
 
 | Area           | Purpose                                                                         |
 | -------------- | ------------------------------------------------------------------------------- |
-| **Live**       | Current aircraft, map, range, altitude, direction, and overhead alerts          |
+| **Live**       | Current aircraft, map, detailed flight cards, route, photo, and overhead alerts |
 | **Replay**     | Saved positions, day selection, animated trails, and records                    |
 | **Station**    | Receiver status, installed tools, account controls, notifications, and sign out |
 | **Mode sheet** | Start a timed radio, satellite, or sensor session; return to aircraft           |
+
+## Explore an aircraft
+
+Tap an aircraft marker or nearby-aircraft row to open its flight card. The card leads with the aircraft photo and route, followed by current altitude, speed, heading, vertical speed, receiver distance, and signal quality. Registry and operator details appear below the live data. Open **Transponder & navigation** for the squawk, selected altitude and heading, autopilot modes, airspeed variants, message count, and data source when the aircraft broadcasts them.
+
+Research shortcuts open live flight history, ADS-B Exchange, AeroLOPA seat-map results, SKYbrary aircraft documentation, PlaneSpotters.net fleet history, FAA registration, and the official NTSB investigation database. A seat map can differ between aircraft with the same model, so confirm the displayed registration. The safety link searches official records; Skyglow does not calculate or imply a safety rating.
 
 ## A receiver session
 

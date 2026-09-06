@@ -6,11 +6,78 @@ export type Aircraft = {
   lat: number | null;
   lon: number | null;
   alt: number | string | null;
+  alt_geom?: number | null;
   speed: number | null;
+  ias?: number | null;
+  tas?: number | null;
+  mach?: number | null;
   track: number | null;
+  track_rate?: number | null;
+  mag_heading?: number | null;
+  true_heading?: number | null;
+  baro_rate?: number | null;
+  geom_rate?: number | null;
+  squawk?: string | null;
+  emergency?: string | null;
+  category?: string | null;
+  nav_qnh?: number | null;
+  nav_altitude?: number | null;
+  nav_heading?: number | null;
+  nav_modes?: string[];
+  registration?: string | null;
+  aircraft_type?: string | null;
+  description?: string | null;
+  operator?: string | null;
+  source?: string | null;
+  messages?: number | null;
+  seen?: number | null;
+  seen_pos?: number | null;
   distance: number | null;
   bearing: number | null;
   rssi?: number;
+};
+export type Airport = {
+  country_iso_name: string;
+  country_name: string;
+  iata_code: string;
+  icao_code: string;
+  municipality: string;
+  name: string;
+  elevation: number | null;
+  latitude: number | null;
+  longitude: number | null;
+};
+export type AircraftDetails = {
+  hex: string;
+  callsign: string;
+  aircraft: {
+    type: string;
+    icao_type: string;
+    manufacturer: string;
+    mode_s: string;
+    registration: string;
+    registered_owner_country_iso_name: string;
+    registered_owner_country_name: string;
+    registered_owner_operator_flag_code: string;
+    registered_owner: string;
+    photo: string | null;
+  } | null;
+  route: {
+    callsign: string;
+    callsign_icao: string;
+    callsign_iata: string;
+    airline: {
+      name: string;
+      icao: string;
+      iata: string;
+      country: string;
+      country_iso: string;
+      callsign: string;
+    } | null;
+    origin: Airport | null;
+    destination: Airport | null;
+  } | null;
+  photo: { src: string; link: string; photographer: string } | null;
 };
 export type Position = [
   number,

@@ -39,7 +39,7 @@ class SkyglowTests(unittest.TestCase):
         except urllib.error.HTTPError as e:return e.code,json.load(e),e.headers
     def test_login_required_locally_and_remotely(self):
         for remote in (False,True):
-            for path in ('/api/snapshot','/api/replay','/api/receiver-log','/media/audio/live.m3u8','/media/captures/../audio/live.m3u8'):
+            for path in ('/api/snapshot','/api/replay','/api/aircraft-details?hex=89649d','/api/receiver-log','/media/audio/live.m3u8','/media/captures/../audio/live.m3u8'):
                 self.assertEqual(self.request(path,remote=remote,signed_in=False)[0],401)
             with patch.object(self.app,'switch') as switch:
                 self.assertEqual(self.request('/api/mode',{'mode':'sensors'},remote=remote,signed_in=False)[0],401)
@@ -99,6 +99,18 @@ class SkyglowTests(unittest.TestCase):
         replay=self.app.replay(start,start+120);self.assertEqual(len(replay['points']),2)
         self.assertTrue(all(p[0]>=start for p in replay['points']))
         with self.assertRaises(ValueError):self.app.replay(start,start+86401)
+    def test_aircraft_details_combines_registry_route_and_attributed_photo(self):
+        def remote(key,*_):
+            if key.startswith('aircraft:'):return {'response':{'aircraft':{'type':'A380 861','icao_type':'A388','manufacturer':'Airbus','mode_s':'89649D','registration':'A6-API','registered_owner_country_name':'United Arab Emirates','registered_owner':'Etihad Airways'}}}
+            if key.startswith('route:'):return {'response':{'flightroute':{'callsign':'ETD1','callsign_iata':'EY1','airline':{'name':'Etihad Airways','iata':'EY'},'origin':{'iata_code':'AUH','name':'Zayed International Airport','latitude':24.43,'longitude':54.65},'destination':{'iata_code':'JFK','name':'John F. Kennedy International Airport','latitude':40.64,'longitude':-73.78}}}}
+            return {'photos':[{'thumbnail_large':{'src':'https://t.plnspttrs.net/photo.jpg'},'link':'https://www.planespotters.net/photo/1','photographer':'A Spotter'}]}
+        with patch.object(self.app,'cached_remote_json',side_effect=remote):details=self.app.aircraft_details('89649d',' ETD1 ')
+        self.assertEqual(details['aircraft']['registration'],'A6-API')
+        self.assertEqual(details['route']['origin']['iata_code'],'AUH')
+        self.assertEqual(details['photo']['photographer'],'A Spotter')
+        with patch.object(self.app,'cached_remote_json',return_value={'response':'unknown aircraft'}):unknown=self.app.aircraft_details('000001')
+        self.assertIsNone(unknown['aircraft']);self.assertIsNone(unknown['route']);self.assertIsNone(unknown['photo'])
+        with self.assertRaises(ValueError):self.app.aircraft_details('../etc/passwd','ETD1')
     def test_distance(self):
         distance,bearing=distance_bearing(0,0,1,0);self.assertAlmostEqual(distance,60.04,places=1);self.assertEqual(bearing,0)
 
