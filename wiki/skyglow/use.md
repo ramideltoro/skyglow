@@ -36,7 +36,7 @@ flowchart TD
 
 ## Explore an aircraft
 
-Tap an aircraft marker, nearby-aircraft row, or overhead alert to open its flight card. Nearby and alert rows show the available aircraft photo as a thumbnail and an **AeroGrade** score. The card leads with the larger aircraft photo and an AeroGrade gauge, followed by the route, current altitude, speed, heading, vertical speed, receiver distance, and signal quality. Registry and operator details appear below the live data. Open **Transponder & navigation** for the squawk, selected altitude and heading, autopilot modes, airspeed variants, message count, and data source when the aircraft broadcasts them.
+Tap an aircraft marker, nearby-aircraft row, or overhead alert to open its flight card. Nearby and alert rows show the available aircraft photo as a thumbnail and an **AeroGrade** score. The card leads with the larger aircraft photo and, when available, a swipeable gallery with up to five additional attributed photos. An AeroGrade gauge follows, along with the route, current altitude, speed, heading, vertical speed, receiver distance, and signal quality. Registry and operator details appear below the live data. Open **Transponder & navigation** for the squawk, selected altitude and heading, autopilot modes, airspeed variants, message count, and data source when the aircraft broadcasts them.
 
 ### Read AeroGrade
 
