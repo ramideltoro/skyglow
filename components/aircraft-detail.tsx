@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { aeroGrade, routeDistance } from "@/lib/aero-grade";
+import { aerolopaSeatMapUrl } from "@/lib/aircraft-links";
 import { Aircraft, AircraftDetails, Airport, number } from "@/lib/skyglow";
 
 const categoryNames: Record<string, string> = {
@@ -178,7 +179,7 @@ export default function AircraftDetail({ aircraft }: { aircraft: Aircraft }) {
     const result: Resource[] = [];
     const callsign = aircraft.flight.trim();
     const hex = aircraft.hex.replace("~", "").toUpperCase();
-    const seatQuery = [operator, displayType, typeCode, "seat map"].filter(Boolean).join(" ");
+    const seatMapUrl = aerolopaSeatMapUrl(route?.airline, callsign);
     if (callsign)
       result.push({
         label: "Live flight & history",
@@ -192,11 +193,11 @@ export default function AircraftDetail({ aircraft }: { aircraft: Aircraft }) {
       href: `https://globe.adsbexchange.com/?icao=${encodeURIComponent(hex.toLowerCase())}`,
       icon: Navigation,
     });
-    if (seatQuery)
+    if (seatMapUrl)
       result.push({
-        label: "Find this cabin’s seat map",
-        detail: operator || displayType,
-        href: `https://www.google.com/search?q=${encodeURIComponent(`site:aerolopa.com ${seatQuery}`)}`,
+        label: "View airline seat maps",
+        detail: `${operator || route?.airline?.name || "Airline"} on AeroLOPA`,
+        href: seatMapUrl,
         icon: Plane,
       });
     if (typeCode)
@@ -226,7 +227,7 @@ export default function AircraftDetail({ aircraft }: { aircraft: Aircraft }) {
       icon: CircleAlert,
     });
     return result;
-  }, [aircraft.flight, aircraft.hex, displayType, operator, registration, typeCode]);
+  }, [aircraft.flight, aircraft.hex, displayType, operator, registration, route, typeCode]);
 
   return (
     <>

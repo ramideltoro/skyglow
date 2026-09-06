@@ -11,7 +11,7 @@
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test lib/aero-grade.test.ts && PYTHONPATH=server python3 -m unittest discover -s server -p \"test_*.py\"",
+    "test": "node --experimental-strip-types --test lib/*.test.ts && PYTHONPATH=server python3 -m unittest discover -s server -p \"test_*.py\"",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck",
     "bundle:check": "python3 ops/check_bundle_budget.py",
     "performance": "python3 ops/run_lighthouse.py"
