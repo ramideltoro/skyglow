@@ -36,9 +36,36 @@ flowchart TD
 
 ## Explore an aircraft
 
-Tap an aircraft marker, nearby-aircraft row, or overhead alert to open its flight card. Nearby and alert rows show the available aircraft photo as a thumbnail. The card leads with the larger aircraft photo and route, followed by current altitude, speed, heading, vertical speed, receiver distance, and signal quality. Registry and operator details appear below the live data. Open **Transponder & navigation** for the squawk, selected altitude and heading, autopilot modes, airspeed variants, message count, and data source when the aircraft broadcasts them.
+Tap an aircraft marker, nearby-aircraft row, or overhead alert to open its flight card. Nearby and alert rows show the available aircraft photo as a thumbnail and an **AeroGrade** score. The card leads with the larger aircraft photo and an AeroGrade gauge, followed by the route, current altitude, speed, heading, vertical speed, receiver distance, and signal quality. Registry and operator details appear below the live data. Open **Transponder & navigation** for the squawk, selected altitude and heading, autopilot modes, airspeed variants, message count, and data source when the aircraft broadcasts them.
 
-Research shortcuts open live flight history, ADS-B Exchange, AeroLOPA seat-map results, SKYbrary aircraft documentation, PlaneSpotters.net fleet history, FAA registration, and the official NTSB investigation database. A seat map can differ between aircraft with the same model, so confirm the displayed registration. The safety link searches official records; Skyglow does not calculate or imply a safety rating.
+### Read AeroGrade
+
+AeroGrade is a 0–100 confidence score for the aircraft profile Skyglow can assemble at that moment. The detail card shows every factor behind the score:
+
+| Factor         | Points | What raises it                                                                 |
+| -------------- | ------ | ------------------------------------------------------------------------------ |
+| **Telemetry**  | 40     | Position, altitude, speed, track, vertical rate, squawk, and navigation fields |
+| **Reception**  | 25     | Fresh messages, a fresh position, and a stronger local signal                  |
+| **Identity**   | 20     | Callsign, registration, aircraft type, and operator                            |
+| **Continuity** | 15     | Direct data source, accumulated messages, and broadcast status fields          |
+
+```mermaid
+flowchart LR
+    Broadcast[Aircraft broadcast] --> T[Telemetry / 40]
+    Antenna[Local antenna] --> R[Reception / 25]
+    Registry[Broadcast identity] --> I[Identity / 20]
+    Stream[Decoder stream] --> C[Continuity / 15]
+    T --> Grade[AeroGrade / 100]
+    R --> Grade
+    I --> Grade
+    C --> Grade
+```
+
+The grade measures data quality, not the physical quality of the aircraft. A score can change as the aircraft moves, its signal changes, or more fields arrive. It does not rate airworthiness, maintenance, age, or safety.
+
+The context panel shows the published route distance in nautical and statute miles when both airports are known, plus the decoder’s current message count. Lifetime airframe mileage is not generally public and cannot be inferred from one received flight. Use the official registry and NTSB links for source records rather than treating missing records as evidence of safety.
+
+Research shortcuts open live flight history, ADS-B Exchange, AeroLOPA seat-map results, SKYbrary aircraft documentation, PlaneSpotters.net fleet history, FAA registration, and the official NTSB investigation database. A seat map can differ between aircraft with the same model, so confirm the displayed registration. The safety link searches official records; AeroGrade does not calculate or imply a safety rating.
 
 ## A receiver session
 

@@ -530,6 +530,38 @@ input:disabled {
 .aircraft-row strong {
   font-size: 0.9375rem;
 }
+.aircraft-row > span:not(.right) {
+  min-width: 0;
+}
+.aircraft-row .aircraft-grade-subtext {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #efb77f;
+  font-weight: 600;
+  margin-top: 3px;
+  white-space: nowrap;
+}
+.aircraft-grade-mini {
+  display: inline-block;
+  width: 30px;
+  height: 4px;
+  border-radius: 999px;
+  background: #553a22;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.aircraft-grade-mini > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #b66b31, #ffc07d);
+}
+.aircraft-row .aircraft-position-subtext {
+  color: #7f8da3;
+  font-size: 0.6875rem;
+  margin-top: 2px;
+}
 .aircraft-row .right {
   margin-left: auto;
   text-align: right;
@@ -959,6 +991,175 @@ body .control-sheet [data-slot="sheet-close"] {
   font-size: 0.75rem;
   line-height: 1.45;
   margin-top: 2px;
+}
+.aerograde-section {
+  background: radial-gradient(circle at 16% 0%, #5d38172e, transparent 42%), #130e09;
+}
+.aerograde-overview {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  align-items: center;
+  gap: 22px;
+  border-bottom: 1px solid #3c2a1a;
+  padding: 2px 0 18px;
+}
+.aerograde-gauge {
+  position: relative;
+  height: 110px;
+}
+.aerograde-gauge svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.aerograde-gauge path {
+  fill: none;
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+.aerograde-gauge-track {
+  stroke: #3c2b1c;
+}
+.aerograde-gauge-value {
+  stroke: #f3aa64;
+  filter: drop-shadow(0 0 8px #f3aa6433);
+}
+.aerograde-gauge > span {
+  position: absolute;
+  left: 50%;
+  bottom: 1px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.aerograde-gauge > span strong {
+  color: #ffe0be;
+  font-size: 2.35rem;
+  font-weight: 560;
+  letter-spacing: -0.06em;
+}
+.aerograde-gauge > span small {
+  color: #977f67;
+  font-size: 0.6875rem;
+}
+.aerograde-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.aerograde-summary > strong {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+  border: 1px solid #825830;
+  border-radius: 16px;
+  background: #2a1b0e;
+  color: #ffc07d;
+  font-size: 1.45rem;
+}
+.aerograde-summary span,
+.aerograde-summary small {
+  display: block;
+}
+.aerograde-summary span {
+  color: #f1dfcb;
+  font-size: 1rem;
+  font-weight: 650;
+}
+.aerograde-summary small {
+  color: #9d8a76;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+.aerograde-factors {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 22px;
+  padding: 18px 0;
+}
+.aerograde-factor > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #d9c5af;
+  font-size: 0.75rem;
+}
+.aerograde-factor > div > span {
+  color: #c6976d;
+  font-variant-numeric: tabular-nums;
+}
+.aerograde-factor-track {
+  display: block;
+  height: 5px;
+  margin: 7px 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #392719;
+}
+.aerograde-factor-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #a65f2e, #efad6a);
+}
+.aerograde-factor > small {
+  display: block;
+  color: #897763;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+.aerograde-context {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid #3c2b1c;
+  border-radius: 13px;
+  overflow: hidden;
+}
+.aerograde-context > div {
+  min-width: 0;
+  padding: 13px;
+  border-right: 1px solid #3c2b1c;
+  border-bottom: 1px solid #3c2b1c;
+}
+.aerograde-context > div:nth-child(2n) {
+  border-right: 0;
+}
+.aerograde-context > div:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+.aerograde-context span,
+.aerograde-context strong,
+.aerograde-context small {
+  display: block;
+}
+.aerograde-context span {
+  color: #8e7c69;
+  font-size: 0.625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.aerograde-context strong {
+  color: #ead8c4;
+  font-size: 0.8125rem;
+  margin: 5px 0 2px;
+}
+.aerograde-context small {
+  color: #7f6f5e;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+}
+.aerograde-note {
+  color: #9d8a76;
+  font-size: 0.6875rem;
+  line-height: 1.55;
+  margin-top: 13px;
 }
 .route-line {
   display: grid;
@@ -1814,6 +2015,34 @@ body .control-sheet [data-slot="sheet-close"] {
   }
   .aircraft-section {
     padding: 15px;
+  }
+  .aerograde-overview {
+    grid-template-columns: 145px 1fr;
+    gap: 12px;
+  }
+  .aerograde-gauge {
+    height: 90px;
+  }
+  .aerograde-gauge > span strong {
+    font-size: 1.9rem;
+  }
+  .aerograde-summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .aerograde-summary > strong {
+    width: 43px;
+    height: 43px;
+    border-radius: 12px;
+    font-size: 1.05rem;
+  }
+  .aerograde-summary span {
+    font-size: 0.875rem;
+  }
+  .aerograde-factors {
+    grid-template-columns: 1fr;
+    gap: 14px;
   }
   .route-line {
     grid-template-columns: minmax(0, 1fr) 42px minmax(0, 1fr);

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type L from "leaflet";
 import { LocateFixed } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { aeroGrade } from "@/lib/aero-grade";
 import { Aircraft, Position, Settings, number } from "@/lib/skyglow";
 export default function SkyMap({
   aircraft,
@@ -104,11 +105,13 @@ export default function SkyMap({
     }
     for (const a of aircraft) {
       if (a.lat == null || a.lon == null) continue;
+      const grade = aeroGrade(a);
       const label = document.createElement("div");
       label.textContent =
         (a.flight || a.hex) +
         " · " +
-        (typeof a.alt === "number" ? number(a.alt) + " ft" : (a.alt ?? "altitude unknown"));
+        (typeof a.alt === "number" ? number(a.alt) + " ft" : (a.alt ?? "altitude unknown")) +
+        ` · AeroGrade ${grade.score}`;
       const el = document.createElement("div");
       el.className = "aircraft-marker";
       const arrow = document.createElement("span");

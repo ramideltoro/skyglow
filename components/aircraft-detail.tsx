@@ -14,6 +14,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { SheetDescription, SheetTitle } from "@/components/ui/sheet";
+import { aeroGrade, routeDistance } from "@/lib/aero-grade";
 import { Aircraft, AircraftDetails, Airport, number } from "@/lib/skyglow";
 
 const categoryNames: Record<string, string> = {
@@ -170,6 +171,8 @@ export default function AircraftDetail({ aircraft }: { aircraft: Aircraft }) {
   const verticalRate = aircraft.baro_rate ?? aircraft.geom_rate;
   const alert = emergencyLabel(aircraft);
   const photo = details?.photo;
+  const grade = aeroGrade(aircraft);
+  const routeMileage = routeDistance(route?.origin ?? null, route?.destination ?? null);
 
   const resources = useMemo(() => {
     const result: Resource[] = [];
@@ -219,7 +222,7 @@ export default function AircraftDetail({ aircraft }: { aircraft: Aircraft }) {
     result.push({
       label: "Official safety records",
       detail: registration ? `Search NTSB for ${registration}` : "NTSB investigation database",
-      href: "https://www.ntsb.gov/Pages/AviationQueryV2.aspx",
+      href: "https://carol.ntsb.gov/",
       icon: CircleAlert,
     });
     return result;
@@ -284,6 +287,93 @@ export default function AircraftDetail({ aircraft }: { aircraft: Aircraft }) {
           )}
         </div>
       </div>
+
+      <section className="aircraft-section aerograde-section">
+        <div className="aircraft-section-title">
+          <Gauge />
+          <div>
+            <h3>AeroGrade</h3>
+            <p>Live aircraft profile confidence</p>
+          </div>
+        </div>
+        <div className="aerograde-overview">
+          <div
+            className="aerograde-gauge"
+            role="meter"
+            aria-label={`AeroGrade ${grade.score} out of 100, ${grade.label}`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={grade.score}
+          >
+            <svg viewBox="0 0 180 104" aria-hidden="true">
+              <path className="aerograde-gauge-track" d="M 18 91 A 72 72 0 0 1 162 91" />
+              <path
+                className="aerograde-gauge-value"
+                d="M 18 91 A 72 72 0 0 1 162 91"
+                pathLength="100"
+                style={{ strokeDasharray: `${grade.score} 100` }}
+              />
+            </svg>
+            <span>
+              <strong>{grade.score}</strong>
+              <small>/ 100</small>
+            </span>
+          </div>
+          <div className="aerograde-summary">
+            <strong>{grade.letter}</strong>
+            <div>
+              <span>{grade.label}</span>
+              <small>Based on the signal and fields received now</small>
+            </div>
+          </div>
+        </div>
+        <div className="aerograde-factors">
+          {grade.factors.map((factor) => (
+            <div className="aerograde-factor" key={factor.label}>
+              <div>
+                <strong>{factor.label}</strong>
+                <span>
+                  {factor.score}/{factor.maximum}
+                </span>
+              </div>
+              <span className="aerograde-factor-track" aria-hidden="true">
+                <span style={{ width: `${(factor.score / factor.maximum) * 100}%` }} />
+              </span>
+              <small>{factor.detail}</small>
+            </div>
+          ))}
+        </div>
+        <div className="aerograde-context">
+          <div>
+            <span>Published route</span>
+            <strong>
+              {routeMileage ? `${number(routeMileage.nauticalMiles)} nm` : "Unavailable"}
+            </strong>
+            <small>
+              {routeMileage ? `${number(routeMileage.miles)} statute miles` : "Needs two airports"}
+            </small>
+          </div>
+          <div>
+            <span>Receiver messages</span>
+            <strong>{aircraft.messages == null ? "Unavailable" : number(aircraft.messages)}</strong>
+            <small>Current decoder session</small>
+          </div>
+          <div>
+            <span>Safety records</span>
+            <strong>Official search</strong>
+            <small>NTSB link below</small>
+          </div>
+          <div>
+            <span>Airframe mileage</span>
+            <strong>Not published</strong>
+            <small>Maintenance records required</small>
+          </div>
+        </div>
+        <p className="aerograde-note">
+          AeroGrade rates how complete and reliable this live profile appears. It is not an
+          airworthiness, maintenance, age, or safety rating.
+        </p>
+      </section>
 
       {(route?.origin || route?.destination) && (
         <section className="aircraft-section route-section">

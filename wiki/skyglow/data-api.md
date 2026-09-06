@@ -98,6 +98,30 @@ Aircraft cards and list thumbnails combine two kinds of information:
 
 Skyglow sends only ICAO addresses and selected callsigns to these services. Aircraft identity responses are cached for seven days, routes for six hours, and photo lookups for one day. One bounded thumbnail request covers the currently displayed nearby and alert rows. Failed lookups use a five-minute cache so an unavailable provider cannot delay every refresh. Returned image and attribution links must use an allowlisted HTTPS host.
 
+## AeroGrade methodology
+
+AeroGrade is calculated in the browser from one aircraft’s current receiver snapshot. It is deterministic, has no paid API dependency, and exposes all four component scores in the interface. The maximum weights are telemetry 40, reception 25, identity 20, and continuity 15. Score bands are A+ at 90, A at 80, B+ at 70, B at 60, C at 50, and D below 50.
+
+```mermaid
+sequenceDiagram
+    participant Decoder as readsb decoder
+    participant API as Skyglow snapshot API
+    participant Grade as AeroGrade calculator
+    participant Card as Aircraft card
+    Decoder->>API: Live ADS-B fields and signal metadata
+    API->>Grade: One aircraft snapshot
+    Grade->>Grade: Score completeness, freshness, signal, and continuity
+    Grade-->>Card: Total, letter, and four explainable factors
+```
+
+The score deliberately excludes claims the available data cannot support:
+
+- The [FAA releasable aircraft database](https://www.faa.gov/licenses_certificates/aircraft_certification/aircraft_registry/releasable_aircraft_download) is refreshed daily and can provide U.S. registry facts, but it is not a maintenance or condition history. Its [field documentation](https://registry.faa.gov/database/ardata.pdf) explains fields such as year manufactured and airworthiness certificate data.
+- The [NTSB accident-data page](https://www.ntsb.gov/safety/data/Pages/Data_Stats.aspx) and [CAROL search](https://carol.ntsb.gov/) provide official investigation records. Skyglow links to them as research sources and does not turn record presence or absence into a safety score.
+- Lifetime flight hours, cycles, maintenance findings, and airframe mileage require operator or maintenance records that are not available in the receiver snapshot.
+
+Published route mileage is calculated only when ADSBDB supplies coordinates for both airports. Skyglow uses the great-circle distance and labels it as route context; it does not include that distance in AeroGrade.
+
 ## Replay sampling
 
 ```mermaid
