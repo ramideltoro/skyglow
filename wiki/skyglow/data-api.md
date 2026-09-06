@@ -96,6 +96,8 @@ Aircraft cards and list thumbnails combine two kinds of information:
 - **Live broadcast data** comes directly from the local antenna, including altitude, ground speed, heading, vertical rate, squawk, navigation selections, signal strength, and position age.
 - **Reference data** comes from ADSBDB and PlaneSpotters.net, including registration, model, operator, route, airports, and an attributed aircraft photo when one is available.
 
+For supported airline codes, Skyglow creates a direct link to that airline’s AeroLOPA fleet page. Regional operators with a single mainline seat-map destination, such as Envoy and American Eagle, use an explicit mapping. Unknown and ambiguous operators do not receive a seat-map shortcut, preventing broken or misleading links.
+
 Skyglow sends only ICAO addresses and selected callsigns to these services. Aircraft identity responses are cached for seven days, routes for six hours, and photo lookups for one day. One bounded thumbnail request covers the currently displayed nearby and alert rows. Failed lookups use a five-minute cache so an unavailable provider cannot delay every refresh. Returned image and attribution links must use an allowlisted HTTPS host.
 
 ## AeroGrade methodology

@@ -65,7 +65,7 @@ The grade measures data quality, not the physical quality of the aircraft. A sco
 
 The context panel shows the published route distance in nautical and statute miles when both airports are known, plus the decoder’s current message count. Lifetime airframe mileage is not generally public and cannot be inferred from one received flight. Use the official registry and NTSB links for source records rather than treating missing records as evidence of safety.
 
-Research shortcuts open live flight history, ADS-B Exchange, AeroLOPA seat-map results, SKYbrary aircraft documentation, PlaneSpotters.net fleet history, FAA registration, and the official NTSB investigation database. A seat map can differ between aircraft with the same model, so confirm the displayed registration. The safety link searches official records; AeroGrade does not calculate or imply a safety rating.
+Research shortcuts open live flight history, ADS-B Exchange, a direct AeroLOPA airline seat-map page, SKYbrary aircraft documentation, PlaneSpotters.net fleet history, FAA registration, and the official NTSB investigation database. The seat-map shortcut appears when Skyglow recognizes a supported airline code; it never routes through a search engine. An airline may operate several cabin configurations for the same model, so use the displayed registration and flight details to select the correct layout. The safety link searches official records; AeroGrade does not calculate or imply a safety rating.
 
 ## A receiver session
 
