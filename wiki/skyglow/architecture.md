@@ -51,7 +51,7 @@ sequenceDiagram
     else /api/* or /media/*
         Edge->>SSH: Proxy to 127.0.0.1:18790
         SSH->>Mac: 127.0.0.1:8790
-        Mac-->>Edge: Authorized response
+        Mac-->>Edge: Public read or authorized owner response
     end
     Edge-->>Browser: Security headers and response
 ```
@@ -86,4 +86,4 @@ flowchart TD
     Cron --> Healthy
 ```
 
-The interface can still load from the VPS when the Mac is unavailable, but login, live data, media, and controls depend on the private receiver path.
+The interface can still load from the VPS when the Mac is unavailable, but live data, media, owner login, and controls depend on the private receiver path.

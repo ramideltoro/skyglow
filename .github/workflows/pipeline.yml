@@ -237,6 +237,8 @@ jobs:
         run: |
           curl --fail --silent --show-error --retry 6 --retry-delay 5 https://skyglow.ramideltoro.com/ | grep -q '<title>Skyglow</title>'
           curl --fail --silent --show-error --retry 6 --retry-delay 5 https://skyglow.ramideltoro.com/api/session | python3 -c 'import json,sys; assert isinstance(json.load(sys.stdin)["authenticated"], bool)'
+          curl --fail --silent --show-error --retry 6 --retry-delay 5 https://skyglow.ramideltoro.com/api/snapshot | python3 -c 'import json,sys; data=json.load(sys.stdin); assert data["can_control"] is False and isinstance(data["aircraft"], list)'
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' -H 'Origin: https://skyglow.ramideltoro.com' -H 'Content-Type: application/json' --data '{"name":"unauthorized"}' https://skyglow.ramideltoro.com/api/settings)" = 401
 
   sync-wiki:
     name: Document release

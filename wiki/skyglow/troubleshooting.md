@@ -6,7 +6,7 @@
 flowchart TD
     Symptom{What do you see?}
     Symptom -->|Site does not load| Public[Check public HTTPS and Cloudflare]
-    Symptom -->|Connecting or login unavailable| API[Check Mac API and SSH tunnel]
+    Symptom -->|Connecting or owner login unavailable| API[Check Mac API and SSH tunnel]
     Symptom -->|Map works, no aircraft| Aircraft[Check mode, readsb, antenna, source age]
     Symptom -->|Radio is static| Radio[Check modulation, frequency, gain, antenna, wait time]
     Symptom -->|No satellite image| Sat[Check pass, TLE age, sky view, antenna, decoder log]
@@ -21,12 +21,12 @@ flowchart TD
 
 ## Site loads but stays on Connecting
 
-1. Request `https://skyglow.ramideltoro.com/api/session`. It should return JSON.
-2. On the Mac, check `local.skyglow.web` and `http://127.0.0.1:8790/api/session`.
+1. Request `https://skyglow.ramideltoro.com/api/snapshot`. It should return JSON without requiring a login.
+2. On the Mac, check `local.skyglow.web` and `http://127.0.0.1:8790/api/snapshot`.
 3. Check `local.skyglow.servercheap-uplink` and its log.
 4. On the VPS, confirm loopback listeners on 8790 and 18790.
 
-An interface-only response means Caddy and Cloudflare are healthy; missing session JSON points to the private Mac path.
+An interface-only response means Caddy and Cloudflare are healthy; missing snapshot JSON points to the private Mac path.
 
 ## Login fails
 
@@ -36,7 +36,7 @@ flowchart LR
     Origin -- No --> Official[Open skyglow.ramideltoro.com directly]
     Origin -- Yes --> Attempts{Many recent failures?}
     Attempts -- Yes --> Wait[Wait five minutes]
-    Attempts -- No --> Owner[Confirm owner-provided account]
+    Attempts -- No --> Owner[Use the sqwak owner account]
     Owner --> Cookies[Allow first-party cookies]
 ```
 

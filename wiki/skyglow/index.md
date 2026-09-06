@@ -2,7 +2,7 @@
 
 <span class="status-pill">Multi-band · mobile radio observatory</span>
 
-Skyglow turns one software-defined radio attached to a Mac into a private observatory for aircraft, radio audio, weather satellites, and nearby wireless sensors. The interface is designed around iPhone Safari and is available at [skyglow.ramideltoro.com](https://skyglow.ramideltoro.com).
+Skyglow turns one software-defined radio attached to a Mac into a public read-only observatory for aircraft, radio audio, weather satellites, and nearby wireless sensors. The `sqwak` owner account unlocks hardware and settings controls. The interface is designed around iPhone Safari and is available at [skyglow.ramideltoro.com](https://skyglow.ramideltoro.com).
 
 [Open Skyglow](https://skyglow.ramideltoro.com){ .md-button .md-button--primary }
 [Browse the source](https://github.com/ramideltoro/skyglow){ .md-button }

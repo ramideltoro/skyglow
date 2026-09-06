@@ -1,7 +1,7 @@
 import io,json,tempfile,threading,time,unittest,urllib.request,urllib.error
 from types import SimpleNamespace
 from unittest.mock import patch
-from skyglow import Observatory, Handler, ThreadingHTTPServer, finite, distance_bearing, listen_options, listen_command
+from skyglow import OWNER_USERNAME, Observatory, Handler, ThreadingHTTPServer, finite, distance_bearing, listen_options, listen_command
 
 class RadioConfigurationTests(unittest.TestCase):
     def test_aircraft_and_weather_use_correct_demodulation(self):
@@ -21,8 +21,8 @@ class RadioConfigurationTests(unittest.TestCase):
 class SkyglowTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.app=Observatory(self.tmp.name,start=False)
-        self.app.login.configure('tester','test-password')
-        _,token=self.app.login.login('tester','test-password','test-client');self.cookie='skyglow_session='+token
+        self.app.login.configure(OWNER_USERNAME,'test-password')
+        _,token=self.app.login.login(OWNER_USERNAME,'test-password','test-client');self.cookie='skyglow_session='+token
         self.server=ThreadingHTTPServer(('127.0.0.1',0),Handler);self.server.app=self.app
         self.thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.thread.start()
         self.base='http://127.0.0.1:'+str(self.server.server_port)
@@ -37,38 +37,59 @@ class SkyglowTests(unittest.TestCase):
         try:
             with urllib.request.urlopen(q) as r:return r.status,json.load(r),r.headers
         except urllib.error.HTTPError as e:return e.code,json.load(e),e.headers
-    def test_login_required_locally_and_remotely(self):
+    def test_public_reads_and_owner_only_controls_locally_and_remotely(self):
+        (self.app.media/'public.json').write_text('{"available":true}')
         for remote in (False,True):
-            for path in ('/api/snapshot','/api/replay','/api/aircraft-details?hex=89649d','/api/receiver-log','/media/audio/live.m3u8','/media/captures/../audio/live.m3u8'):
+            status,snapshot,_=self.request('/api/snapshot',remote=remote,signed_in=False)
+            self.assertEqual(status,200);self.assertFalse(snapshot['can_control']);self.assertEqual(snapshot['username'],'')
+            self.assertEqual(self.request('/api/replay',remote=remote,signed_in=False)[0],200)
+            self.assertEqual(self.request('/api/sensor-history?id=demo',remote=remote,signed_in=False)[0],200)
+            self.assertEqual(self.request('/media/public.json',remote=remote,signed_in=False)[0],200)
+            with patch.object(self.app,'aircraft_details',return_value={'hex':'89649D'}):
+                self.assertEqual(self.request('/api/aircraft-details?hex=89649d',remote=remote,signed_in=False)[0],200)
+            with patch.object(self.app,'aircraft_thumbnails',return_value={'photos':{}}):
+                self.assertEqual(self.request('/api/aircraft-thumbnails',remote=remote,signed_in=False)[0],200)
+            for path in ('/api/receiver-log','/api/push-key'):
                 self.assertEqual(self.request(path,remote=remote,signed_in=False)[0],401)
+            self.assertEqual(self.request('/media/captures/../audio/live.m3u8',remote=remote,signed_in=False)[0],404)
             with patch.object(self.app,'switch') as switch:
                 self.assertEqual(self.request('/api/mode',{'mode':'sensors'},remote=remote,signed_in=False)[0],401)
                 switch.assert_not_called()
+            previous=self.app.settings.copy()
+            self.assertEqual(self.request('/api/settings',{'name':'Intruder'},remote=remote,signed_in=False)[0],401)
+            self.assertEqual(self.app.settings,previous)
+            self.assertEqual(self.request('/api/push',{'endpoint':'https://web.push.apple.com/x'},remote=remote,signed_in=False)[0],401)
     def test_cross_origin_control_and_login_blocked(self):
         self.assertEqual(self.request('/api/settings',{},origin='https://untrusted.example')[0],403)
-        self.assertEqual(self.request('/api/login',{'username':'tester','password':'test-password'},origin='https://untrusted.example',signed_in=False)[0],403)
+        self.assertEqual(self.request('/api/login',{'username':OWNER_USERNAME,'password':'test-password'},origin='https://untrusted.example',signed_in=False)[0],403)
     def test_shared_login_cookie_and_logout(self):
-        status,_,headers=self.request('/api/login',{'username':'tester','password':'test-password'},remote=True,signed_in=False)
+        status,_,headers=self.request('/api/login',{'username':OWNER_USERNAME,'password':'test-password'},remote=True,signed_in=False)
         self.assertEqual(status,200);cookie=headers['Set-Cookie'];self.assertIn('Secure',cookie);self.assertIn('HttpOnly',cookie)
         cookie=cookie.split(';')[0]
-        _,snap,_=self.request('/api/snapshot',remote=True,cookie=cookie);self.assertTrue(snap['can_control']);self.assertEqual(snap['username'],'tester')
+        _,snap,_=self.request('/api/snapshot',remote=True,cookie=cookie);self.assertTrue(snap['can_control']);self.assertEqual(snap['username'],OWNER_USERNAME)
         with patch.object(self.app,'switch') as switch:
             self.assertEqual(self.request('/api/mode',{'mode':'aircraft'},remote=True,cookie=cookie)[0],200)
             switch.assert_called_once()
         self.assertEqual(self.request('/api/logout',{},remote=True,cookie=cookie)[0],200)
-        self.assertEqual(self.request('/api/snapshot',remote=True,cookie=cookie)[0],401)
+        _,public,_=self.request('/api/snapshot',remote=True,cookie=cookie);self.assertFalse(public['can_control'])
         self.assertEqual(self.request('/api/snapshot')[0],200)
     def test_only_configured_account_can_log_in(self):
-        for user,password in [('tester','wrong'),('someone-else','test-password')]:
+        for user,password in [(OWNER_USERNAME,'wrong'),('someone-else','test-password')]:
             self.assertEqual(self.request('/api/login',{'username':user,'password':password},signed_in=False)[0],401)
+    def test_non_owner_account_session_never_gets_control(self):
+        self.app.login.configure('someone-else','other-password')
+        _,token=self.app.login.login('someone-else','other-password','other-client')
+        cookie='skyglow_session='+token
+        _,snapshot,_=self.request('/api/snapshot',cookie=cookie);self.assertFalse(snapshot['can_control'])
+        self.assertEqual(self.request('/api/settings',{'name':'Blocked'},cookie=cookie)[0],401)
     def test_old_pairing_removed_and_old_cookie_ignored(self):
         self.assertEqual(self.request('/api/pair-code',{})[0],404)
         self.assertEqual(self.request('/api/pair',{'code':'123456'})[0],404)
-        self.assertEqual(self.request('/api/snapshot',cookie='skyglow_control=old-pairing-token')[0],401)
+        _,snapshot,_=self.request('/api/snapshot',cookie='skyglow_control=old-pairing-token',signed_in=False);self.assertFalse(snapshot['can_control'])
     def test_login_rate_limit(self):
         for _ in range(10):
-            self.assertEqual(self.request('/api/login',{'username':'tester','password':'wrong'},signed_in=False)[0],401)
-        self.assertEqual(self.request('/api/login',{'username':'tester','password':'test-password'},signed_in=False)[0],429)
+            self.assertEqual(self.request('/api/login',{'username':OWNER_USERNAME,'password':'wrong'},signed_in=False)[0],401)
+        self.assertEqual(self.request('/api/login',{'username':OWNER_USERNAME,'password':'test-password'},signed_in=False)[0],429)
     def test_credentials_are_hashed_and_sessions_persist(self):
         from access import LoginStore
         store=LoginStore(self.tmp.name)
@@ -111,6 +132,13 @@ class SkyglowTests(unittest.TestCase):
         with patch.object(self.app,'cached_remote_json',return_value={'response':'unknown aircraft'}):unknown=self.app.aircraft_details('000001')
         self.assertIsNone(unknown['aircraft']);self.assertIsNone(unknown['route']);self.assertIsNone(unknown['photo'])
         with self.assertRaises(ValueError):self.app.aircraft_details('../etc/passwd','ETD1')
+    def test_aircraft_thumbnails_cover_nearby_aircraft_and_alerts(self):
+        self.app.aircraft=[{'hex':'89649d'},{'hex':'not-a-code'}]
+        with self.app.db() as db:db.execute('INSERT INTO alerts VALUES(?,?,?,?,?)',(time.time(),'a0b1c2','TEST1',2.5,12000))
+        payload={'photos':[{'thumbnail':{'src':'https://t.plnspttrs.net/small.jpg'},'thumbnail_large':{'src':'https://t.plnspttrs.net/large.jpg'},'link':'https://www.planespotters.net/photo/1','photographer':'A Spotter'}]}
+        with patch.object(self.app,'cached_remote_json',return_value=payload):result=self.app.aircraft_thumbnails()
+        self.assertEqual(set(result['photos']),{'89649D','A0B1C2'})
+        self.assertTrue(all(photo['src'].endswith('/small.jpg') for photo in result['photos'].values()))
     def test_distance(self):
         distance,bearing=distance_bearing(0,0,1,0);self.assertAlmostEqual(distance,60.04,places=1);self.assertEqual(bearing,0)
 

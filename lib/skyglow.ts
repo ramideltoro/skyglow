@@ -47,6 +47,7 @@ export type Airport = {
   latitude: number | null;
   longitude: number | null;
 };
+export type AircraftPhoto = { src: string; link: string; photographer: string };
 export type AircraftDetails = {
   hex: string;
   callsign: string;
@@ -77,7 +78,7 @@ export type AircraftDetails = {
     origin: Airport | null;
     destination: Airport | null;
   } | null;
-  photo: { src: string; link: string; photographer: string } | null;
+  photo: AircraftPhoto | null;
 };
 export type Position = [
   number,

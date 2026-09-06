@@ -199,6 +199,21 @@ input:disabled {
   text-align: left;
   min-height: 70px;
 }
+.receiver-bar:disabled {
+  cursor: default;
+  opacity: 1;
+}
+.viewer-badge {
+  border: 1px solid #725139;
+  border-radius: 999px;
+  color: #d6b58f;
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 5px 8px;
+  text-transform: uppercase;
+}
 .receiver-bar strong {
   display: block;
   font-size: 0.9375rem;
@@ -523,21 +538,39 @@ input:disabled {
 .aircraft-row .right strong small {
   display: inline;
 }
+.aircraft-thumb,
 .row-icon {
-  width: 35px;
-  height: 35px;
+  width: 62px;
+  height: 44px;
   display: grid;
   place-items: center;
   border-radius: 11px;
   background: #f7ba840a;
   color: #d9a474;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+.aircraft-thumb img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
 }
 .alert-row {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 15px 20px;
+  background: none;
+  color: var(--foreground);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  border: 0;
   border-top: 1px solid #223047;
+}
+.alert-row:hover {
+  background: #162336;
 }
 .alert-row p {
   font-size: 0.875rem;
@@ -548,6 +581,10 @@ input:disabled {
   margin-left: auto;
   white-space: nowrap;
   color: #94a2ba;
+}
+.alert-row > svg {
+  color: #8998b0;
+  flex-shrink: 0;
 }
 .event-dot {
   width: 5px;
@@ -1676,8 +1713,10 @@ body .control-sheet [data-slot="sheet-close"] {
     padding: 14px 16px;
     gap: 10px;
   }
+  .aircraft-thumb,
   .aircraft-row > .row-icon {
-    width: 28px;
+    height: 38px;
+    width: 52px;
   }
   .aircraft-row > svg {
     display: none;
@@ -1702,6 +1741,13 @@ body .control-sheet [data-slot="sheet-close"] {
   }
   .alert-row {
     padding: 14px 16px;
+    gap: 9px;
+  }
+  .alert-row > svg {
+    display: none;
+  }
+  .alert-row > small {
+    font-size: 11px;
   }
   .control-sheet {
     padding-left: 20px !important;
@@ -1828,6 +1874,51 @@ body .control-sheet [data-slot="sheet-close"] {
 }
 .push-alerts p {
   margin: 8px 0 14px;
+}
+.read-only-note {
+  background: #21170e;
+  border: 1px solid #5b4027;
+  border-radius: 12px;
+  color: #d7c1a3;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 8px auto 0;
+  max-width: 420px;
+  padding: 12px 14px;
+}
+.owner-login-sheet {
+  max-width: 480px !important;
+}
+.owner-login-form {
+  display: grid;
+  gap: 18px;
+  margin-top: 8px;
+}
+.owner-login-message {
+  align-items: center;
+  background: #21170e;
+  border: 1px solid #5b4027;
+  border-radius: 14px;
+  display: flex;
+  gap: 13px;
+  padding: 14px;
+}
+.owner-login-message > span {
+  align-items: center;
+  background: #f6b87812;
+  border-radius: 11px;
+  color: var(--primary);
+  display: flex;
+  flex: 0 0 auto;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+.owner-login-message p {
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  margin-top: 3px;
 }
 
 .login-page {
