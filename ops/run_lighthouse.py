@@ -8,6 +8,7 @@ import json
 import mimetypes
 import os
 import shutil
+import statistics
 import subprocess
 import threading
 
@@ -16,7 +17,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / 'dist' / 'client'
 REPORT_DIR = ROOT / '.lighthouseci'
 REPORT = REPORT_DIR / 'report.json'
+SUMMARY = REPORT_DIR / 'summary.json'
 PORT = 4173
+RUNS = 3
 PUBLIC_SNAPSHOT = {
     'now': 1788566400,
     'local': False,
@@ -116,27 +119,42 @@ thread = threading.Thread(target=server.serve_forever, daemon=True)
 thread.start()
 try:
     environment = dict(os.environ, CHROME_PATH=chrome)
-    subprocess.run(
-        [
-            'pnpm', 'exec', 'lighthouse', f'http://127.0.0.1:{PORT}/',
-            '--quiet', '--output=json', f'--output-path={REPORT}',
-            '--only-categories=performance,accessibility,best-practices,seo',
-            '--chrome-flags=--headless=new --no-sandbox',
-        ],
-        cwd=ROOT,
-        env=environment,
-        check=True,
-    )
+    reports = []
+    for run in range(1, RUNS + 1):
+        output = REPORT_DIR / f'report-{run}.json'
+        subprocess.run(
+            [
+                'pnpm', 'exec', 'lighthouse', f'http://127.0.0.1:{PORT}/',
+                '--quiet', '--output=json', f'--output-path={output}',
+                '--only-categories=performance,accessibility,best-practices,seo',
+                '--chrome-flags=--headless=new --no-sandbox',
+            ],
+            cwd=ROOT,
+            env=environment,
+            check=True,
+        )
+        reports.append(json.loads(output.read_text()))
 finally:
     server.shutdown()
     server.server_close()
     thread.join(timeout=5)
 
-report = json.loads(REPORT.read_text())
+scores = {
+    name: [report['categories'][name]['score'] for report in reports]
+    for name in THRESHOLDS
+}
+medians = {name: statistics.median(values) for name, values in scores.items()}
+representative = min(
+    reports,
+    key=lambda report: abs(report['categories']['performance']['score'] - medians['performance']),
+)
+REPORT.write_text(json.dumps(representative))
+SUMMARY.write_text(json.dumps({'runs': scores, 'medians': medians, 'thresholds': THRESHOLDS}, indent=2) + '\n')
 failed = []
 for name, minimum in THRESHOLDS.items():
-    score = report['categories'][name]['score']
-    print(f'{name}: {score:.2f} (minimum {minimum:.2f})')
+    score = medians[name]
+    samples = ', '.join(f'{value:.2f}' for value in scores[name])
+    print(f'{name}: median {score:.2f} from [{samples}] (minimum {minimum:.2f})')
     if score < minimum:
         failed.append(f'{name} {score:.2f} < {minimum:.2f}')
 if failed:
