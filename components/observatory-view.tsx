@@ -28,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SkyMap from "@/components/sky-map";
 import PushAlerts from "@/components/push-alerts";
 import SiteFooter from "@/components/site-footer";
+import AircraftDetail from "@/components/aircraft-detail";
 import {
   Aircraft,
   ListenBand,
@@ -195,6 +196,11 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
       osc.stop(ctx.currentTime + 0.5);
     }
   }, [data?.alerts, sound]);
+  useEffect(() => {
+    if (!selected || !data) return;
+    const current = data.aircraft.find((aircraft) => aircraft.hex === selected.hex);
+    if (current) setSelected(current);
+  }, [data, selected?.hex]);
   const action = async (fn: () => Promise<void>) => {
     setBusy(true);
     try {
@@ -945,35 +951,8 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
           if (!v) setSelected(null);
         }}
       >
-        <SheetContent side="bottom" className="control-sheet">
-          {selected && (
-            <>
-              <SheetTitle>{selected.flight || selected.hex.toUpperCase()}</SheetTitle>
-              <SheetDescription>Aircraft broadcast · {selected.hex.toUpperCase()}</SheetDescription>
-              <div className="detail-grid">
-                <Stat
-                  label="Altitude"
-                  value={
-                    typeof selected.alt === "number"
-                      ? number(selected.alt)
-                      : selected.alt === "ground"
-                        ? "Ground"
-                        : "—"
-                  }
-                  unit={typeof selected.alt === "number" ? "ft" : undefined}
-                />
-                <Stat label="Speed" value={number(selected.speed)} unit="kt" />
-                <Stat label="Distance" value={number(selected.distance, 1)} unit="nm" />
-                <Stat label="Direction" value={number(selected.track)} unit="°" />
-              </div>
-              {selected.lat != null && (
-                <p className="supporting">
-                  {selected.lat.toFixed(4)}, {selected.lon?.toFixed(4)} · bearing{" "}
-                  {selected.bearing ?? "—"}° from your receiver
-                </p>
-              )}
-            </>
-          )}
+        <SheetContent side="bottom" className="control-sheet aircraft-sheet">
+          {selected && <AircraftDetail aircraft={selected} />}
         </SheetContent>
       </Sheet>
       {notice && (
