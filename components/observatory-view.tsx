@@ -31,6 +31,7 @@ import PushAlerts from "@/components/push-alerts";
 import SiteFooter from "@/components/site-footer";
 import AircraftDetail from "@/components/aircraft-detail";
 import OwnerLogin from "@/components/owner-login";
+import { aeroGrade } from "@/lib/aero-grade";
 import {
   Aircraft,
   AircraftPhoto,
@@ -122,14 +123,23 @@ function AircraftCard({
   photo?: AircraftPhoto;
   onClick: () => void;
 }) {
+  const grade = aeroGrade(a);
   return (
     <button className="aircraft-row" onClick={onClick}>
       <AircraftThumb photo={photo} label={a.flight || a.hex.toUpperCase()} />
       <span>
         <strong>{a.flight || a.hex.toUpperCase()}</strong>
-        <small>
-          {a.hex.toUpperCase()} ·{" "}
-          {a.bearing == null ? "Position unavailable" : `${a.bearing}° bearing`}
+        <small
+          className="aircraft-grade-subtext"
+          title="Live profile confidence, not a safety rating"
+        >
+          <span className="aircraft-grade-mini" aria-hidden="true">
+            <span style={{ width: `${grade.score}%` }} />
+          </span>
+          AeroGrade {grade.score} · {grade.letter}
+        </small>
+        <small className="aircraft-position-subtext">
+          {a.hex.toUpperCase()} · {a.bearing == null ? "Position unavailable" : `${a.bearing}°`}
         </small>
       </span>
       <span className="right">
@@ -459,42 +469,43 @@ export default function ObservatoryView() {
                   : "Owner sign-in is required to change alert behavior."}
               </p>
               {data.alerts.length ? (
-                data.alerts.slice(0, 6).map((a) => (
-                  <button
-                    className="alert-row"
-                    key={a.t + "-" + a.hex}
-                    onClick={() =>
-                      setSelected(
-                        data.aircraft.find(
-                          (aircraft) => aircraft.hex.toUpperCase() === a.hex.toUpperCase(),
-                        ) ?? {
-                          hex: a.hex,
-                          flight: a.flight,
-                          lat: null,
-                          lon: null,
-                          alt: a.alt,
-                          speed: null,
-                          track: null,
-                          distance: a.distance,
-                          bearing: null,
-                        },
-                      )
-                    }
-                  >
-                    <AircraftThumb
-                      photo={photos[a.hex.toUpperCase()]}
-                      label={a.flight || a.hex.toUpperCase()}
-                    />
-                    <div>
-                      <strong>{a.flight || a.hex.toUpperCase()}</strong>
-                      <p>
-                        {number(a.distance, 1)} nm away · {number(a.alt)} ft
-                      </p>
-                    </div>
-                    <small>{ago(a.t)}</small>
-                    <ChevronRight size={16} />
-                  </button>
-                ))
+                data.alerts.slice(0, 6).map((a) => {
+                  const current = data.aircraft.find(
+                    (aircraft) => aircraft.hex.toUpperCase() === a.hex.toUpperCase(),
+                  );
+                  const alertAircraft: Aircraft = current ?? {
+                    hex: a.hex,
+                    flight: a.flight,
+                    lat: null,
+                    lon: null,
+                    alt: a.alt,
+                    speed: null,
+                    track: null,
+                    distance: a.distance,
+                    bearing: null,
+                  };
+                  const grade = aeroGrade(alertAircraft);
+                  return (
+                    <button
+                      className="alert-row"
+                      key={a.t + "-" + a.hex}
+                      onClick={() => setSelected(alertAircraft)}
+                    >
+                      <AircraftThumb
+                        photo={photos[a.hex.toUpperCase()]}
+                        label={a.flight || a.hex.toUpperCase()}
+                      />
+                      <div>
+                        <strong>{a.flight || a.hex.toUpperCase()}</strong>
+                        <p>
+                          AeroGrade {grade.score} · {grade.letter} · {number(a.distance, 1)} nm
+                        </p>
+                      </div>
+                      <small>{ago(a.t)}</small>
+                      <ChevronRight size={16} />
+                    </button>
+                  );
+                })
               ) : (
                 <Empty icon={Bell} title="Listening for a close pass">
                   Your next overhead aircraft will be logged here.
