@@ -17,6 +17,26 @@ SITE = ROOT / 'dist' / 'client'
 REPORT_DIR = ROOT / '.lighthouseci'
 REPORT = REPORT_DIR / 'report.json'
 PORT = 4173
+PUBLIC_SNAPSHOT = {
+    'now': 1788566400,
+    'local': False,
+    'can_control': False,
+    'username': '',
+    'source_age': 2,
+    'settings': {'name': 'Skyglow', 'latitude': 27.95, 'longitude': -82.46, 'alert_nm': 5},
+    'receiver': {
+        'mode': 'aircraft', 'since': 1788562800, 'until': None, 'switching': False,
+        'error': None, 'options': {}, 'audio_ready': False,
+    },
+    'aircraft': [],
+    'stats': {'aircraft_24h': 42, 'first_record': None, 'farthest_nm': 31.2, 'farthest_detail': None},
+    'alerts': [],
+    'sensors': [],
+    'captures': [],
+    'orbital': {'passes': [], 'message': 'Pass predictions unavailable in this preview.'},
+    'events': [],
+    'tools': {},
+}
 THRESHOLDS = {
     # Lighthouse's simulated mobile score varies with shared-runner CPU load.
     # The bundle budget supplies the deterministic performance guardrail while
@@ -56,6 +76,14 @@ class ProductionLikeHandler(BaseHTTPRequestHandler):
         path = unquote(urlparse(self.path).path)
         if path == '/api/session':
             body = b'{"authenticated":false}'
+            content_type = 'application/json'
+            cache = 'no-store'
+        elif path == '/api/snapshot':
+            body = json.dumps(PUBLIC_SNAPSHOT).encode()
+            content_type = 'application/json'
+            cache = 'no-store'
+        elif path == '/api/aircraft-thumbnails':
+            body = b'{"photos":{}}'
             content_type = 'application/json'
             cache = 'no-store'
         else:

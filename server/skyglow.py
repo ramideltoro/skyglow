@@ -14,6 +14,7 @@ ORIGINAL = HOME/'Library/Application Support/AntennaObservatory/state'
 AIR_PLIST = HOME/'Library/LaunchAgents/local.airplanes-live.readsb.plist'
 AIR_LABEL = f'gui/{os.getuid()}/local.airplanes-live.readsb'
 PUBLIC = 'https://skyglow.ramideltoro.com'
+OWNER_USERNAME = 'sqwak'
 SERIAL = '96195546'
 MODES = ('aircraft', 'listen', 'satellite', 'sensors')
 WEATHER_CHANNELS = (162.400,162.425,162.450,162.475,162.500,162.525,162.550)
@@ -31,6 +32,17 @@ def safe_remote_url(value, hosts):
         parsed=urlparse(str(value))
         return str(value) if parsed.scheme=='https' and parsed.hostname in hosts else None
     except (TypeError,ValueError):return None
+
+def photo_record(data, large=True):
+    photos=data.get('photos',[]) if isinstance(data,dict) else []
+    if not isinstance(photos,list) or not photos or not isinstance(photos[0],dict):return None
+    item=photos[0]
+    preferred=item.get('thumbnail_large' if large else 'thumbnail',{})
+    fallback=item.get('thumbnail' if large else 'thumbnail_large',{})
+    rendition=preferred if isinstance(preferred,dict) and preferred.get('src') else fallback
+    src=safe_remote_url(rendition.get('src') if isinstance(rendition,dict) else None,{'t.plnspttrs.net'})
+    link=safe_remote_url(item.get('link'),{'www.planespotters.net','planespotters.net'})
+    return {'src':src,'link':link,'photographer':text_value(item.get('photographer'),80)} if src and link else None
 
 def finite(value, low, high, label):
     try: value = float(value)
@@ -151,7 +163,6 @@ class Observatory:
         route_response=remote.get('route',{}).get('response',{})
         raw_aircraft=aircraft_response.get('aircraft',{}) if isinstance(aircraft_response,dict) else {}
         raw_route=route_response.get('flightroute',{}) if isinstance(route_response,dict) else {}
-        photos=remote.get('photo',{}).get('photos',[])
         aircraft=None
         if isinstance(raw_aircraft,dict) and raw_aircraft:
             aircraft={k:text_value(raw_aircraft.get(k)) for k in ('type','icao_type','manufacturer','mode_s','registration','registered_owner_country_iso_name','registered_owner_country_name','registered_owner_operator_flag_code','registered_owner')}
@@ -167,15 +178,22 @@ class Observatory:
                 route[end]={k:text_value(airport.get(k)) for k in ('country_iso_name','country_name','iata_code','icao_code','municipality','name')}
                 for key in ('elevation','latitude','longitude'):
                     route[end][key]=airport.get(key) if isinstance(airport.get(key),(int,float)) else None
-        photo=None
-        if isinstance(photos,list) and photos and isinstance(photos[0],dict):
-            item=photos[0];large=item.get('thumbnail_large',{})
-            src=safe_remote_url(large.get('src') if isinstance(large,dict) else None,{'t.plnspttrs.net'})
-            link=safe_remote_url(item.get('link'),{'www.planespotters.net','planespotters.net'})
-            if src and link:photo={'src':src,'link':link,'photographer':text_value(item.get('photographer'),80)}
+        photo=photo_record(remote.get('photo',{}))
         if not photo and aircraft and aircraft.get('photo'):
             photo={'src':aircraft['photo'],'link':aircraft['photo'],'photographer':''}
         return {'hex':hex_code.upper(),'callsign':callsign,'aircraft':aircraft,'route':route,'photo':photo}
+
+    def aircraft_thumbnails(self):
+        with self.lock:hex_codes=[text_value(item.get('hex'),7).lower() for item in self.aircraft[:20]]
+        with self.db() as db:hex_codes += [text_value(row['hex'],7).lower() for row in db.execute('SELECT hex FROM alerts ORDER BY t DESC LIMIT 12')]
+        unique=[]
+        for hex_code in hex_codes:
+            if re.fullmatch(r'[0-9a-f]{6}',hex_code) and hex_code not in unique:unique.append(hex_code)
+        if not unique:return {'photos':{}}
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(8,len(unique))) as pool:
+            futures={hex_code:pool.submit(self.cached_remote_json,f'photo:{hex_code}',f'https://api.planespotters.net/pub/photos/hex/{quote(hex_code)}',86400) for hex_code in unique}
+            photos={hex_code.upper():photo for hex_code,future in futures.items() if (photo:=photo_record(future.result(),large=False))}
+        return {'photos':photos}
 
     def save_settings(self, data):
         updated={'name':str(data.get('name','Skyglow')).strip()[:60] or 'Skyglow',
@@ -452,13 +470,13 @@ class Handler(BaseHTTPRequestHandler):
         except http.cookies.CookieError:return None
         return token.value if token else None
 
-    def authorized(self):return self.app.login.authenticated(self.session_token())
+    def authorized(self):return self.app.login.account.get('username')==OWNER_USERNAME and self.app.login.authenticated(self.session_token())
 
     def session_cookie(self,token,clear=False):
         return f'skyglow_session={token}; HttpOnly; Path=/; SameSite=Strict; Max-Age={0 if clear else 2592000}'+('' if self.local() else '; Secure')
 
     def send(self,status,data,content_type='application/json',headers=None):
-        body=json.dumps(data,allow_nan=False).encode() if content_type=='application/json' else data
+        body=json.dumps(data,allow_nan=False).encode() if content_type=='application/json' and not isinstance(data,bytes) else data
         self.send_response(status);self.send_header('Content-Type',content_type);self.send_header('Content-Length',str(len(body)))
         self.send_header('Cache-Control','no-store');self.send_header('X-Content-Type-Options','nosniff');self.send_header('Referrer-Policy','strict-origin-when-cross-origin');self.send_header('X-Frame-Options','DENY')
         for k,v in (headers or {}).items():self.send_header(k,v)
@@ -471,14 +489,16 @@ class Handler(BaseHTTPRequestHandler):
         u=urlparse(self.path);path=unquote(u.path);q=parse_qs(u.query)
         try:
             if path=='/api/session':return self.send(200,{'authenticated':self.authorized()})
-            if (path.startswith('/api/') or path.startswith('/media/')) and not self.authorized():
-                return self.send(401,{'error':'Sign in to Skyglow.'})
+            authorized=self.authorized()
+            if path in ('/api/push-key','/api/receiver-log') and not authorized:return self.send(401,{'error':'Owner sign-in required.'})
             if path=='/api/snapshot':
-                data=self.app.snapshot();data.update(can_control=True,local=self.local(),username=self.app.login.account['username']);return self.send(200,data)
+                data=self.app.snapshot();data.update(can_control=authorized,local=self.local(),username=OWNER_USERNAME if authorized else '');return self.send(200,data)
             if path=='/api/health':return self.send(200,{'service':'skyglow','mode':self.app.mode})
             if path=='/api/push-key':return self.send(200,{'key':self.app.vapid_public})
             if path=='/api/aircraft-details':return self.send(200,self.app.aircraft_details(q.get('hex',[''])[0],q.get('callsign',[''])[0]))
-            if path=='/api/replay':return self.send(200,self.app.replay(q.get('start',[time.time()-86400])[0],q.get('end',[time.time()])[0]))
+            if path=='/api/aircraft-thumbnails':return self.send(200,self.app.aircraft_thumbnails())
+            if path=='/api/replay':
+                now=time.time();return self.send(200,self.app.replay(q.get('start',[now-86400])[0],q.get('end',[now])[0]))
             if path=='/api/sensor-history':
                 sid=q.get('id',[''])[0]
                 with self.app.db() as db:rows=db.execute('SELECT t,data FROM sensor_history WHERE id=? AND t>? ORDER BY t DESC LIMIT 150',(sid,time.time()-86400)).fetchall()
@@ -506,6 +526,7 @@ class Handler(BaseHTTPRequestHandler):
             if path=='/api/login':
                 client=self.headers.get('CF-Connecting-IP',self.client_address[0])
                 status,token=self.app.login.login(data.get('username'),data.get('password'),client)
+                if text_value(data.get('username'),128)!=OWNER_USERNAME:status,token=401,None
                 if status==429:return self.send(429,{'error':'Too many attempts. Try again in five minutes.'},headers={'Retry-After':'300'})
                 if status!=200:return self.send(401,{'error':'Incorrect username or password.'})
                 return self.send(200,{'authenticated':True},headers={'Set-Cookie':self.session_cookie(token)})

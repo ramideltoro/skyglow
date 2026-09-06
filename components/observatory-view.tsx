@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Headphones,
   History,
+  LockKeyhole,
   Orbit,
   Pause,
   Plane,
@@ -29,8 +30,10 @@ import SkyMap from "@/components/sky-map";
 import PushAlerts from "@/components/push-alerts";
 import SiteFooter from "@/components/site-footer";
 import AircraftDetail from "@/components/aircraft-detail";
+import OwnerLogin from "@/components/owner-login";
 import {
   Aircraft,
+  AircraftPhoto,
   ListenBand,
   Mode,
   Position,
@@ -90,12 +93,38 @@ function Stat({ label, value, unit }: { label: string; value: string; unit?: str
     </div>
   );
 }
-function AircraftCard({ a, onClick }: { a: Aircraft; onClick: () => void }) {
+function AircraftThumb({ photo, label }: { photo?: AircraftPhoto; label: string }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [photo?.src]);
+  return (
+    <span className="aircraft-thumb" aria-hidden="true">
+      {photo && !failed ? (
+        <img
+          src={photo.src}
+          alt=""
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <Plane size={20} aria-label={label} />
+      )}
+    </span>
+  );
+}
+
+function AircraftCard({
+  a,
+  photo,
+  onClick,
+}: {
+  a: Aircraft;
+  photo?: AircraftPhoto;
+  onClick: () => void;
+}) {
   return (
     <button className="aircraft-row" onClick={onClick}>
-      <span className="row-icon">
-        <Plane size={19} />
-      </span>
+      <AircraftThumb photo={photo} label={a.flight || a.hex.toUpperCase()} />
       <span>
         <strong>{a.flight || a.hex.toUpperCase()}</strong>
         <small>
@@ -120,16 +149,18 @@ function AircraftCard({ a, onClick }: { a: Aircraft; onClick: () => void }) {
   );
 }
 
-export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => void }) {
+export default function ObservatoryView() {
   const [data, setData] = useState<Snapshot | null>(null),
     [error, setError] = useState(""),
     [tab, setTab] = useState("sky"),
     [station, setStation] = useState(false),
+    [ownerLogin, setOwnerLogin] = useState(false),
     [modeSheet, setModeSheet] = useState(false),
     [busy, setBusy] = useState(false),
     [notice, setNotice] = useState(""),
     [selected, setSelected] = useState<Aircraft | null>(null),
-    [sound, setSound] = useState(false);
+    [sound, setSound] = useState(false),
+    [photos, setPhotos] = useState<Record<string, AircraftPhoto>>({});
   const [newMode, setNewMode] = useState<Mode>("aircraft"),
     [frequency, setFrequency] = useState("162.550"),
     [listenBand, setListenBand] = useState<ListenBand>("weather"),
@@ -150,10 +181,6 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
   const refresh = async () => {
     try {
       const r = await fetch("/api/snapshot", { cache: "no-store" });
-      if (r.status === 401) {
-        onSignedOut();
-        return;
-      }
       if (!r.ok) throw new Error("Receiver unavailable");
       setData(await r.json());
       setError("");
@@ -179,6 +206,34 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
       document.removeEventListener("visibilitychange", wake);
     };
   }, []);
+  const thumbnailKey = useMemo(
+    () =>
+      data
+        ? [
+            ...data.aircraft.slice(0, 20).map((aircraft) => aircraft.hex),
+            ...data.alerts.slice(0, 12).map((alert) => alert.hex),
+          ]
+            .map((hex) => hex.toUpperCase())
+            .filter((hex, index, all) => all.indexOf(hex) === index)
+            .join(",")
+        : "",
+    [data?.aircraft, data?.alerts],
+  );
+  useEffect(() => {
+    if (!thumbnailKey) {
+      setPhotos({});
+      return;
+    }
+    const controller = new AbortController();
+    fetch("/api/aircraft-thumbnails", { cache: "no-store", signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((result) => {
+        const payload = result as { photos?: Record<string, AircraftPhoto> };
+        setPhotos(payload.photos ?? {});
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [thumbnailKey]);
   useEffect(() => {
     const a = data?.alerts[0];
     if (!a || a.t <= lastAlert.current) return;
@@ -213,6 +268,10 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
     }
   };
   const choose = (m: Mode) => {
+    if (!controls) {
+      setOwnerLogin(true);
+      return;
+    }
     setNewMode(m);
     if (m === "listen" && data?.receiver.mode === "listen") {
       setListenBand(data.receiver.options.band ?? "airband");
@@ -270,16 +329,25 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
           variant="ghost"
           className="station-button"
           onClick={() => {
-            setDraft(data.settings);
-            setStation(true);
+            if (controls) {
+              setDraft(data.settings);
+              setStation(true);
+            } else {
+              setOwnerLogin(true);
+            }
           }}
-          aria-label="Station settings"
+          aria-label={controls ? "Station settings" : "Owner sign in"}
         >
-          <Settings2 size={20} />
-          <span>Station</span>
+          {controls ? <Settings2 size={20} /> : <LockKeyhole size={20} />}
+          <span>{controls ? "Station" : "Owner sign in"}</span>
         </Button>
       </header>
-      <button className="receiver-bar" onClick={() => choose(data.receiver.mode)}>
+      <button
+        className="receiver-bar"
+        onClick={() => choose(data.receiver.mode)}
+        disabled={!controls}
+        aria-label={controls ? "Change receiver mode" : "Receiver status, read only"}
+      >
         <span className={"status-light " + (error ? "offline" : "")} />
         <span>
           <strong>
@@ -288,7 +356,7 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
           <small>{error ? "Mac connection unavailable" : sessionNote}</small>
         </span>
         <span className="frequency">{frequencyLabel(data)}</span>
-        <ChevronDown size={18} />
+        {controls ? <ChevronDown size={18} /> : <span className="viewer-badge">Read only</span>}
       </button>
       {error && (
         <p role="alert" className="banner danger">
@@ -333,7 +401,7 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
                   ? "Waiting for fresh aircraft signals. Check the antenna and USB connection."
                   : `${modeNames[data.receiver.mode]} is using the receiver. Your saved flights are available in Replay.`}
               </p>
-              {data.receiver.mode !== "aircraft" && (
+              {controls && data.receiver.mode !== "aircraft" && (
                 <Button variant="secondary" onClick={() => choose("aircraft")}>
                   Resume aircraft
                 </Button>
@@ -349,7 +417,14 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
               {live && data.aircraft.length ? (
                 data.aircraft
                   .slice(0, 20)
-                  .map((a) => <AircraftCard key={a.hex} a={a} onClick={() => setSelected(a)} />)
+                  .map((a) => (
+                    <AircraftCard
+                      key={a.hex}
+                      a={a}
+                      photo={photos[a.hex.toUpperCase()]}
+                      onClick={() => setSelected(a)}
+                    />
+                  ))
               ) : (
                 <Empty icon={Plane} title="The sky will appear here">
                   Aircraft show up as your antenna receives their broadcasts.
@@ -361,25 +436,55 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
                 <h2>
                   <Bell size={18} /> Overhead alerts
                 </h2>
-                <Switch
-                  aria-label="Alert sound while Skyglow is open"
-                  checked={sound}
-                  onCheckedChange={(on) => {
-                    setSound(on);
-                    if (on) {
-                      audioContext.current ??= new AudioContext();
-                      audioContext.current.resume();
-                    }
-                  }}
-                />
+                {controls ? (
+                  <Switch
+                    aria-label="Alert sound while Skyglow is open"
+                    checked={sound}
+                    onCheckedChange={(on) => {
+                      setSound(on);
+                      if (on) {
+                        audioContext.current ??= new AudioContext();
+                        audioContext.current.resume();
+                      }
+                    }}
+                  />
+                ) : (
+                  <span className="viewer-badge">Read only</span>
+                )}
               </div>
               <p className="supporting">
-                Within {data.settings.alert_nm} nautical miles. Sound plays while this page is open.
+                Within {data.settings.alert_nm} nautical miles.{" "}
+                {controls
+                  ? "Sound plays while this page is open."
+                  : "Owner sign-in is required to change alert behavior."}
               </p>
               {data.alerts.length ? (
                 data.alerts.slice(0, 6).map((a) => (
-                  <div className="alert-row" key={a.t + "-" + a.hex}>
-                    <span className="event-dot" />
+                  <button
+                    className="alert-row"
+                    key={a.t + "-" + a.hex}
+                    onClick={() =>
+                      setSelected(
+                        data.aircraft.find(
+                          (aircraft) => aircraft.hex.toUpperCase() === a.hex.toUpperCase(),
+                        ) ?? {
+                          hex: a.hex,
+                          flight: a.flight,
+                          lat: null,
+                          lon: null,
+                          alt: a.alt,
+                          speed: null,
+                          track: null,
+                          distance: a.distance,
+                          bearing: null,
+                        },
+                      )
+                    }
+                  >
+                    <AircraftThumb
+                      photo={photos[a.hex.toUpperCase()]}
+                      label={a.flight || a.hex.toUpperCase()}
+                    />
                     <div>
                       <strong>{a.flight || a.hex.toUpperCase()}</strong>
                       <p>
@@ -387,7 +492,8 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
                       </p>
                     </div>
                     <small>{ago(a.t)}</small>
-                  </div>
+                    <ChevronRight size={16} />
+                  </button>
                 ))
               ) : (
                 <Empty icon={Bell} title="Listening for a close pass">
@@ -430,7 +536,7 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
                 : "Listen to Tampa weather or nearby aircraft."}
             </p>
             <div className="dial-ticks" aria-hidden="true" />
-            {data.receiver.mode === "listen" && controls ? (
+            {data.receiver.mode === "listen" ? (
               <>
                 <audio
                   key={data.receiver.since}
@@ -449,35 +555,47 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
                     ? "Live audio has a short buffering delay."
                     : "Preparing the audio stream…"}
                 </p>
-                <Button variant="secondary" onClick={() => choose("aircraft")}>
-                  Stop & return to aircraft
-                </Button>
-                <Button variant="secondary" onClick={() => choose("listen")}>
-                  Change frequency
-                </Button>
+                {controls ? (
+                  <>
+                    <Button variant="secondary" onClick={() => choose("aircraft")}>
+                      Stop & return to aircraft
+                    </Button>
+                    <Button variant="secondary" onClick={() => choose("listen")}>
+                      Change frequency
+                    </Button>
+                  </>
+                ) : (
+                  <p className="read-only-note">
+                    Listening is public. Owner sign-in is required to retune the receiver.
+                  </p>
+                )}
               </>
-            ) : (
+            ) : controls ? (
               <Button onClick={() => choose("listen")}>
                 <Headphones /> Tune receiver
               </Button>
+            ) : (
+              <p className="read-only-note">Owner sign-in is required to tune the receiver.</p>
             )}
           </section>
-          <div className="radio-presets" aria-label="Tampa radio presets">
-            {radioPresets.map((preset) => (
-              <Button
-                key={preset.name}
-                variant="secondary"
-                onClick={() => {
-                  setNewMode("listen");
-                  setListenBand(preset.band);
-                  setFrequency(preset.frequency);
-                  setModeSheet(true);
-                }}
-              >
-                {preset.name} · {preset.frequency}
-              </Button>
-            ))}
-          </div>
+          {controls && (
+            <div className="radio-presets" aria-label="Tampa radio presets">
+              {radioPresets.map((preset) => (
+                <Button
+                  key={preset.name}
+                  variant="secondary"
+                  onClick={() => {
+                    setNewMode("listen");
+                    setListenBand(preset.band);
+                    setFrequency(preset.frequency);
+                    setModeSheet(true);
+                  }}
+                >
+                  {preset.name} · {preset.frequency}
+                </Button>
+              ))}
+            </div>
+          )}
           <section className="panel padded">
             <h2>Your listening setup</h2>
             <p>
@@ -531,12 +649,18 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
                 <p>{data.orbital.message}</p>
               )}
             </div>
-            <Button
-              onClick={() => choose(data.receiver.mode === "satellite" ? "aircraft" : "satellite")}
-            >
-              {data.receiver.mode === "satellite" ? "Finish capture" : "Start capture"}
-              <ChevronRight size={17} />
-            </Button>
+            {controls ? (
+              <Button
+                onClick={() =>
+                  choose(data.receiver.mode === "satellite" ? "aircraft" : "satellite")
+                }
+              >
+                {data.receiver.mode === "satellite" ? "Finish capture" : "Start capture"}
+                <ChevronRight size={17} />
+              </Button>
+            ) : (
+              <span className="viewer-badge">Read only</span>
+            )}
           </section>
           <div className="banner">
             <p>
@@ -655,11 +779,15 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
                 Weather stations, thermometers, soil probes, and supported tire-pressure sensors.
               </p>
             </div>
-            <Button
-              onClick={() => choose(data.receiver.mode === "sensors" ? "aircraft" : "sensors")}
-            >
-              {data.receiver.mode === "sensors" ? "Return to aircraft" : "Start listening"}
-            </Button>
+            {controls ? (
+              <Button
+                onClick={() => choose(data.receiver.mode === "sensors" ? "aircraft" : "sensors")}
+              >
+                {data.receiver.mode === "sensors" ? "Return to aircraft" : "Start listening"}
+              </Button>
+            ) : (
+              <span className="viewer-badge">Read only</span>
+            )}
           </section>
           {data.sensors.length ? (
             <div className="sensor-grid">
@@ -685,6 +813,22 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
         </TabsContent>
       </Tabs>
       <SiteFooter />
+      <Sheet open={ownerLogin} onOpenChange={setOwnerLogin}>
+        <SheetContent side="bottom" className="control-sheet owner-login-sheet">
+          <SheetTitle>Owner access</SheetTitle>
+          <SheetDescription>
+            Skyglow is public to explore. Sign in as sqwak to operate the receiver and change
+            station settings.
+          </SheetDescription>
+          <OwnerLogin
+            onSignedIn={async () => {
+              await refresh();
+              setOwnerLogin(false);
+              flash("Owner controls unlocked.");
+            }}
+          />
+        </SheetContent>
+      </Sheet>
       <Sheet open={modeSheet} onOpenChange={setModeSheet}>
         <SheetContent side="bottom" className="control-sheet">
           <SheetTitle>Choose your wavelength</SheetTitle>
@@ -830,7 +974,9 @@ export default function ObservatoryView({ onSignedOut }: { onSignedOut: () => vo
               onClick={() =>
                 action(async () => {
                   await post("logout", {});
-                  onSignedOut();
+                  setStation(false);
+                  setModeSheet(false);
+                  flash("Signed out. Skyglow remains available in read-only mode.");
                 })
               }
             >

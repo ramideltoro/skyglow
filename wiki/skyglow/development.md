@@ -48,7 +48,7 @@ gitGraph
 ```
 
 1. Branch from `main` and keep code and documentation together.
-2. Preserve authentication on private routes and POST-only receiver controls.
+2. Preserve owner authentication on diagnostic routes and every receiver or settings control.
 3. Keep mode durations, response sizes, paths, and numeric inputs bounded.
 4. Add focused tests for security boundaries, state transitions, or bug regressions.
 5. Update the canonical wiki when behavior, deployment, data, security, or operations change.
