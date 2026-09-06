@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Skyglow: local radio controller, aircraft archive, and mobile web server."""
-import argparse, base64, collections, concurrent.futures, datetime as dt, hashlib, http.cookies, json, math, mimetypes, queue
+import argparse, base64, collections, concurrent.futures, datetime as dt, hashlib, html, http.cookies, json, math, mimetypes, queue
 import os, re, secrets, shutil, signal, sqlite3, subprocess, threading, time, urllib.error, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs, quote, unquote
+from urllib.parse import urlparse, parse_qs, quote, unquote, urlencode
 from access import LoginStore
 
 HOME = Path.home()
@@ -33,16 +33,52 @@ def safe_remote_url(value, hosts):
         return str(value) if parsed.scheme=='https' and parsed.hostname in hosts else None
     except (TypeError,ValueError):return None
 
-def photo_record(data, large=True):
+def photo_records(data, large=True, limit=6):
     photos=data.get('photos',[]) if isinstance(data,dict) else []
-    if not isinstance(photos,list) or not photos or not isinstance(photos[0],dict):return None
-    item=photos[0]
-    preferred=item.get('thumbnail_large' if large else 'thumbnail',{})
-    fallback=item.get('thumbnail' if large else 'thumbnail_large',{})
-    rendition=preferred if isinstance(preferred,dict) and preferred.get('src') else fallback
-    src=safe_remote_url(rendition.get('src') if isinstance(rendition,dict) else None,{'t.plnspttrs.net'})
-    link=safe_remote_url(item.get('link'),{'www.planespotters.net','planespotters.net'})
-    return {'src':src,'link':link,'photographer':text_value(item.get('photographer'),80)} if src and link else None
+    if not isinstance(photos,list):return []
+    result=[];seen=set()
+    for item in photos:
+        if not isinstance(item,dict):continue
+        preferred=item.get('thumbnail_large' if large else 'thumbnail',{})
+        fallback=item.get('thumbnail' if large else 'thumbnail_large',{})
+        rendition=preferred if isinstance(preferred,dict) and preferred.get('src') else fallback
+        src=safe_remote_url(rendition.get('src') if isinstance(rendition,dict) else None,{'t.plnspttrs.net'})
+        link=safe_remote_url(item.get('link'),{'www.planespotters.net','planespotters.net'})
+        if not src or not link or src in seen:continue
+        result.append({'src':src,'link':link,'photographer':text_value(item.get('photographer'),80),'source':'PlaneSpotters','license':''})
+        seen.add(src)
+        if len(result)>=limit:break
+    return result
+
+def photo_record(data, large=True):
+    photos=photo_records(data,large,1)
+    return photos[0] if photos else None
+
+def plain_html(value, limit=80):
+    value=re.sub(r'<[^>]*>',' ',str(value or ''))
+    return text_value(re.sub(r'\s+',' ',html.unescape(value)),limit)
+
+def commons_photo_records(data, registration, limit=6):
+    query=data.get('query',{}) if isinstance(data,dict) else {}
+    pages=query.get('pages',[]) if isinstance(query,dict) else []
+    registration=text_value(registration,16).upper()
+    if not isinstance(pages,list) or not registration:return []
+    result=[];seen=set()
+    for page in pages:
+        if not isinstance(page,dict) or registration not in text_value(page.get('title'),240).upper():continue
+        imageinfo=page.get('imageinfo',[])
+        if not isinstance(imageinfo,list) or not imageinfo or not isinstance(imageinfo[0],dict):continue
+        item=imageinfo[0]
+        src=safe_remote_url(item.get('thumburl') or item.get('url'),{'thumb.wikimedia.org','upload.wikimedia.org'})
+        link=safe_remote_url(item.get('descriptionurl'),{'commons.wikimedia.org'})
+        if not src or not link or src in seen:continue
+        metadata=item.get('extmetadata',{}) if isinstance(item.get('extmetadata'),dict) else {}
+        artist=metadata.get('Artist',{}) if isinstance(metadata.get('Artist'),dict) else {}
+        license_name=metadata.get('LicenseShortName',{}) if isinstance(metadata.get('LicenseShortName'),dict) else {}
+        result.append({'src':src,'link':link,'photographer':plain_html(artist.get('value')) or 'Wikimedia Commons contributor','source':'Wikimedia Commons','license':plain_html(license_name.get('value'),40)})
+        seen.add(src)
+        if len(result)>=limit:break
+    return result
 
 def finite(value, low, high, label):
     try: value = float(value)
@@ -178,10 +214,16 @@ class Observatory:
                 route[end]={k:text_value(airport.get(k)) for k in ('country_iso_name','country_name','iata_code','icao_code','municipality','name')}
                 for key in ('elevation','latitude','longitude'):
                     route[end][key]=airport.get(key) if isinstance(airport.get(key),(int,float)) else None
-        photo=photo_record(remote.get('photo',{}))
-        if not photo and aircraft and aircraft.get('photo'):
-            photo={'src':aircraft['photo'],'link':aircraft['photo'],'photographer':''}
-        return {'hex':hex_code.upper(),'callsign':callsign,'aircraft':aircraft,'route':route,'photo':photo}
+        photos=photo_records(remote.get('photo',{}))
+        registration=aircraft.get('registration','').upper() if aircraft else ''
+        if len(photos)<6 and re.fullmatch(r'[A-Z0-9-]{2,12}',registration):
+            commons_url='https://commons.wikimedia.org/w/api.php?'+urlencode({'action':'query','generator':'search','gsrsearch':f'intitle:"{registration}" filetype:bitmap','gsrnamespace':6,'gsrlimit':10,'prop':'imageinfo','iiprop':'url|extmetadata','iiurlwidth':720,'format':'json','formatversion':2})
+            commons=self.cached_remote_json(f'commons:{registration}',commons_url,86400)
+            photos+=commons_photo_records(commons,registration,6-len(photos))
+        if not photos and aircraft and aircraft.get('photo'):
+            photos=[{'src':aircraft['photo'],'link':aircraft['photo'],'photographer':'','source':'Airport Data','license':''}]
+        photo=photos[0] if photos else None
+        return {'hex':hex_code.upper(),'callsign':callsign,'aircraft':aircraft,'route':route,'photo':photo,'photos':photos}
 
     def aircraft_thumbnails(self):
         with self.lock:hex_codes=[text_value(item.get('hex'),7).lower() for item in self.aircraft[:20]]

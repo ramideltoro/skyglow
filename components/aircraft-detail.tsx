@@ -16,7 +16,7 @@ import {
 import { SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { aeroGrade, routeDistance } from "@/lib/aero-grade";
 import { aerolopaSeatMapUrl } from "@/lib/aircraft-links";
-import { Aircraft, AircraftDetails, Airport, number } from "@/lib/skyglow";
+import { Aircraft, AircraftDetails, AircraftPhoto, Airport, number } from "@/lib/skyglow";
 
 const categoryNames: Record<string, string> = {
   A1: "Light aircraft",
@@ -129,6 +129,13 @@ function DataRow({ label, value }: { label: string; value?: string | number | nu
   );
 }
 
+function photoCredit(photo: AircraftPhoto) {
+  const credit = photo.photographer
+    ? `Photo by ${photo.photographer}`
+    : photo.source || "Aircraft photo";
+  return [credit, photo.license].filter(Boolean).join(" · ");
+}
+
 type Resource = {
   label: string;
   detail: string;
@@ -139,13 +146,13 @@ type Resource = {
 export default function AircraftDetail({ aircraft }: { aircraft: Aircraft }) {
   const [details, setDetails] = useState<AircraftDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  const [photoFailed, setPhotoFailed] = useState(false);
+  const [failedPhotos, setFailedPhotos] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     setDetails(null);
-    setPhotoFailed(false);
+    setFailedPhotos({});
     const params = new URLSearchParams({ hex: aircraft.hex, callsign: aircraft.flight });
     fetch(`/api/aircraft-details?${params}`, { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
@@ -171,7 +178,11 @@ export default function AircraftDetail({ aircraft }: { aircraft: Aircraft }) {
   const operator = route?.airline?.name || aircraft.operator || identity?.registered_owner || "";
   const verticalRate = aircraft.baro_rate ?? aircraft.geom_rate;
   const alert = emergencyLabel(aircraft);
-  const photo = details?.photo;
+  const photos = (details?.photos?.length ? details.photos : details?.photo ? [details.photo] : [])
+    .filter((item) => !failedPhotos[item.src])
+    .slice(0, 6);
+  const photo = photos[0];
+  const additionalPhotos = photos.slice(1);
   const grade = aeroGrade(aircraft);
   const routeMileage = routeDistance(route?.origin ?? null, route?.destination ?? null);
 
@@ -257,16 +268,16 @@ export default function AircraftDetail({ aircraft }: { aircraft: Aircraft }) {
       )}
 
       <div className="aircraft-hero">
-        {photo && !photoFailed ? (
+        {photo ? (
           <a href={photo.link} target="_blank" rel="noreferrer" className="aircraft-photo-link">
             <img
               src={photo.src}
               alt={`${registration || aircraft.flight || "Detected aircraft"}${displayType ? `, ${displayType}` : ""}`}
-              onError={() => setPhotoFailed(true)}
+              onError={() => setFailedPhotos((current) => ({ ...current, [photo.src]: true }))}
               referrerPolicy="no-referrer"
             />
             <span>
-              {photo.photographer ? `Photo by ${photo.photographer}` : "Aircraft photo"}
+              {photoCredit(photo)}
               <ArrowUpRight />
             </span>
           </a>
@@ -274,6 +285,42 @@ export default function AircraftDetail({ aircraft }: { aircraft: Aircraft }) {
           <div className="aircraft-photo-placeholder">
             <Plane />
             <span>{loading ? "Finding an aircraft photo…" : "No verified photo available"}</span>
+          </div>
+        )}
+        {additionalPhotos.length > 0 && (
+          <div className="aircraft-gallery-block">
+            <div className="aircraft-gallery-heading">
+              <strong>More photos</strong>
+              <span>
+                {additionalPhotos.length} additional{" "}
+                {additionalPhotos.length === 1 ? "view" : "views"}
+              </span>
+            </div>
+            <div className="aircraft-photo-gallery" aria-label="Additional aircraft photos">
+              {additionalPhotos.map((item, index) => (
+                <a
+                  href={item.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="aircraft-gallery-photo"
+                  key={item.src}
+                  aria-label={`Open aircraft photo ${index + 2} of ${photos.length} on ${item.source || "its source"}`}
+                >
+                  <img
+                    src={item.src}
+                    alt={`${registration || aircraft.flight || "Detected aircraft"}, view ${index + 2} of ${photos.length}`}
+                    loading="lazy"
+                    decoding="async"
+                    onError={() => setFailedPhotos((current) => ({ ...current, [item.src]: true }))}
+                    referrerPolicy="no-referrer"
+                  />
+                  <span>
+                    {photoCredit(item)}
+                    <ArrowUpRight />
+                  </span>
+                </a>
+              ))}
+            </div>
           </div>
         )}
         <div className="flight-badges">
@@ -559,10 +606,10 @@ export default function AircraftDetail({ aircraft }: { aircraft: Aircraft }) {
           ))}
         </div>
         <p className="aircraft-source-note">
-          Aircraft identity and route details come from ADSBDB. Photos are provided by
-          PlaneSpotters.net when available. Seat layouts vary by airline and individual aircraft;
-          verify the registration before choosing a seat. Safety links open official records and do
-          not imply a safety rating.
+          Aircraft identity and route details come from ADSBDB. Photos come from PlaneSpotters.net
+          and Wikimedia Commons when available. Seat layouts vary by airline and individual
+          aircraft; verify the registration before choosing a seat. Safety links open official
+          records and do not imply a safety rating.
         </p>
       </section>
     </>

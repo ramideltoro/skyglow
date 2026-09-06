@@ -15,6 +15,7 @@ flowchart TD
     Media --> MediaRoute[Public read-only /media route]
     API -->|selected ICAO and callsign| ADSBDB[ADSBDB aircraft and route data]
     API -->|selected ICAO| Photos[PlaneSpotters.net photo API]
+    API -->|registration search| Commons[Wikimedia Commons API]
     API --> Tunnel[Reverse SSH]
     MediaRoute --> Tunnel
     Tunnel --> Browser[iPhone browser]
@@ -72,33 +73,33 @@ erDiagram
 
 ## HTTP routes
 
-| Method | Route                      | Purpose                                                | Authentication                    |
-| ------ | -------------------------- | ------------------------------------------------------ | --------------------------------- |
-| GET    | `/api/session`             | Report whether the current cookie is an owner session  | Public                            |
-| POST   | `/api/login`               | Create a `sqwak` owner session                         | Host/Origin checks and rate limit |
-| POST   | `/api/logout`              | Revoke the current browser session                     | Valid Origin                      |
-| GET    | `/api/snapshot`            | Live receiver, aircraft, alerts, sensors, and captures | Public, read-only                 |
-| GET    | `/api/aircraft-details`    | Cached aircraft identity, route, and attributed photo  | Public, read-only                 |
-| GET    | `/api/aircraft-thumbnails` | Cached thumbnails for nearby aircraft and alerts       | Public, read-only                 |
-| GET    | `/api/replay`              | Bounded aircraft history for a time range              | Public, read-only                 |
-| GET    | `/api/sensor-history`      | Recent readings for one sensor                         | Public, read-only                 |
-| GET    | `/api/receiver-log`        | Bounded diagnostic tail                                | Owner                             |
-| GET    | `/api/push-key`            | Web Push public key                                    | Owner                             |
-| POST   | `/api/mode`                | Change or stop a receiver mode                         | Owner                             |
-| POST   | `/api/settings`            | Update validated station settings                      | Owner                             |
-| POST   | `/api/push`                | Add or remove an approved push endpoint                | Owner                             |
-| GET    | `/media/*`                 | Current HLS audio segments and capture products        | Public, read-only                 |
+| Method | Route                      | Purpose                                                          | Authentication                    |
+| ------ | -------------------------- | ---------------------------------------------------------------- | --------------------------------- |
+| GET    | `/api/session`             | Report whether the current cookie is an owner session            | Public                            |
+| POST   | `/api/login`               | Create a `sqwak` owner session                                   | Host/Origin checks and rate limit |
+| POST   | `/api/logout`              | Revoke the current browser session                               | Valid Origin                      |
+| GET    | `/api/snapshot`            | Live receiver, aircraft, alerts, sensors, and captures           | Public, read-only                 |
+| GET    | `/api/aircraft-details`    | Cached aircraft identity, route, and up to six attributed photos | Public, read-only                 |
+| GET    | `/api/aircraft-thumbnails` | Cached thumbnails for nearby aircraft and alerts                 | Public, read-only                 |
+| GET    | `/api/replay`              | Bounded aircraft history for a time range                        | Public, read-only                 |
+| GET    | `/api/sensor-history`      | Recent readings for one sensor                                   | Public, read-only                 |
+| GET    | `/api/receiver-log`        | Bounded diagnostic tail                                          | Owner                             |
+| GET    | `/api/push-key`            | Web Push public key                                              | Owner                             |
+| POST   | `/api/mode`                | Change or stop a receiver mode                                   | Owner                             |
+| POST   | `/api/settings`            | Update validated station settings                                | Owner                             |
+| POST   | `/api/push`                | Add or remove an approved push endpoint                          | Owner                             |
+| GET    | `/media/*`                 | Current HLS audio segments and capture products                  | Public, read-only                 |
 
 ## Aircraft enrichment
 
 Aircraft cards and list thumbnails combine two kinds of information:
 
 - **Live broadcast data** comes directly from the local antenna, including altitude, ground speed, heading, vertical rate, squawk, navigation selections, signal strength, and position age.
-- **Reference data** comes from ADSBDB and PlaneSpotters.net, including registration, model, operator, route, airports, and an attributed aircraft photo when one is available.
+- **Reference data** comes from ADSBDB, PlaneSpotters.net, and Wikimedia Commons, including registration, model, operator, route, airports, and up to six attributed aircraft photos when they are available.
 
 For supported airline codes, Skyglow creates a direct link to that airline’s AeroLOPA fleet page. Regional operators with a single mainline seat-map destination, such as Envoy and American Eagle, use an explicit mapping. Unknown and ambiguous operators do not receive a seat-map shortcut, preventing broken or misleading links.
 
-Skyglow sends only ICAO addresses and selected callsigns to these services. Aircraft identity responses are cached for seven days, routes for six hours, and photo lookups for one day. One bounded thumbnail request covers the currently displayed nearby and alert rows. Failed lookups use a five-minute cache so an unavailable provider cannot delay every refresh. Returned image and attribution links must use an allowlisted HTTPS host.
+Skyglow sends only ICAO addresses, selected callsigns, and the returned registration to these services. Aircraft identity responses are cached for seven days, routes for six hours, and photo lookups for one day. The detail response keeps at most six unique photos, and the card lazy-loads the five additional images. PlaneSpotters supplies the primary photo; when the registration appears in Wikimedia Commons, Commons supplies additional licensed images and attribution. One bounded thumbnail request covers the currently displayed nearby and alert rows. Failed lookups use a five-minute cache so an unavailable provider cannot delay every refresh. Returned image and attribution links must use an allowlisted HTTPS host.
 
 ## AeroGrade methodology
 

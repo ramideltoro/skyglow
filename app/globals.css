@@ -941,6 +941,83 @@ body .control-sheet [data-slot="sheet-close"] {
   color: #a99077;
   font-size: 0.8125rem;
 }
+.aircraft-gallery-block {
+  border-top: 1px solid #51371f;
+  background: #130d08;
+  padding: 13px 0 14px;
+}
+.aircraft-gallery-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 13px 10px;
+}
+.aircraft-gallery-heading strong {
+  color: #f1d4b5;
+  font-size: 0.8125rem;
+  font-weight: 620;
+}
+.aircraft-gallery-heading span {
+  color: #947b62;
+  font-size: 0.6875rem;
+}
+.aircraft-photo-gallery {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 0 13px 2px;
+  scroll-padding-inline: 13px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.aircraft-photo-gallery::-webkit-scrollbar {
+  display: none;
+}
+.aircraft-gallery-photo {
+  position: relative;
+  flex: 0 0 220px;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border: 1px solid #604225;
+  border-radius: 12px;
+  background: #090604;
+  scroll-snap-align: start;
+}
+.aircraft-gallery-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.aircraft-gallery-photo::after {
+  content: "";
+  position: absolute;
+  inset: 42% 0 0;
+  background: linear-gradient(transparent, #090604eb);
+  pointer-events: none;
+}
+.aircraft-gallery-photo > span {
+  position: absolute;
+  z-index: 1;
+  right: 8px;
+  bottom: 7px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  color: #ead5bd;
+  font-size: 0.625rem;
+  text-align: right;
+}
+.aircraft-gallery-photo > span svg {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+}
 .flight-badges {
   display: flex;
   flex-wrap: wrap;
@@ -1927,6 +2004,9 @@ body .control-sheet [data-slot="sheet-close"] {
   }
   .aircraft-row strong {
     font-size: 14px;
+  }
+  .aircraft-gallery-photo {
+    flex-basis: min(78vw, 290px);
   }
   .banner {
     align-items: flex-start;

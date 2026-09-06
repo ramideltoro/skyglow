@@ -124,13 +124,21 @@ class SkyglowTests(unittest.TestCase):
         def remote(key,*_):
             if key.startswith('aircraft:'):return {'response':{'aircraft':{'type':'A380 861','icao_type':'A388','manufacturer':'Airbus','mode_s':'89649D','registration':'A6-API','registered_owner_country_name':'United Arab Emirates','registered_owner':'Etihad Airways'}}}
             if key.startswith('route:'):return {'response':{'flightroute':{'callsign':'ETD1','callsign_iata':'EY1','airline':{'name':'Etihad Airways','iata':'EY'},'origin':{'iata_code':'AUH','name':'Zayed International Airport','latitude':24.43,'longitude':54.65},'destination':{'iata_code':'JFK','name':'John F. Kennedy International Airport','latitude':40.64,'longitude':-73.78}}}}
-            return {'photos':[{'thumbnail_large':{'src':'https://t.plnspttrs.net/photo.jpg'},'link':'https://www.planespotters.net/photo/1','photographer':'A Spotter'}]}
+            if key.startswith('photo:'):return {'photos':[{'thumbnail_large':{'src':'https://t.plnspttrs.net/primary.jpg'},'link':'https://www.planespotters.net/photo/1','photographer':'Primary Spotter'}]}
+            pages=[{'title':f'File:Etihad A6-API view {index}.jpg','imageinfo':[{'thumburl':f'https://thumb.wikimedia.org/photo-{index}.jpg','descriptionurl':f'https://commons.wikimedia.org/wiki/File:A6-API-{index}.jpg','extmetadata':{'Artist':{'value':f'<a>Commons Spotter {index}</a>'},'LicenseShortName':{'value':'CC BY-SA 4.0'}}}]} for index in range(7)]
+            pages.insert(0,{'title':'File:Wrong registration.jpg','imageinfo':[{'thumburl':'https://thumb.wikimedia.org/wrong.jpg','descriptionurl':'https://commons.wikimedia.org/wiki/File:Wrong.jpg'}]})
+            pages.insert(1,{'title':'File:A6-API unsafe.jpg','imageinfo':[{'thumburl':'https://example.com/unsafe.jpg','descriptionurl':'https://example.com/unsafe'}]})
+            return {'query':{'pages':pages}}
         with patch.object(self.app,'cached_remote_json',side_effect=remote):details=self.app.aircraft_details('89649d',' ETD1 ')
         self.assertEqual(details['aircraft']['registration'],'A6-API')
         self.assertEqual(details['route']['origin']['iata_code'],'AUH')
-        self.assertEqual(details['photo']['photographer'],'A Spotter')
+        self.assertEqual(details['photo']['photographer'],'Primary Spotter')
+        self.assertEqual(details['photo'],details['photos'][0])
+        self.assertEqual(len(details['photos']),6)
+        self.assertEqual([photo['photographer'] for photo in details['photos'][1:]],[f'Commons Spotter {index}' for index in range(5)])
+        self.assertTrue(all(photo['license']=='CC BY-SA 4.0' for photo in details['photos'][1:]))
         with patch.object(self.app,'cached_remote_json',return_value={'response':'unknown aircraft'}):unknown=self.app.aircraft_details('000001')
-        self.assertIsNone(unknown['aircraft']);self.assertIsNone(unknown['route']);self.assertIsNone(unknown['photo'])
+        self.assertIsNone(unknown['aircraft']);self.assertIsNone(unknown['route']);self.assertIsNone(unknown['photo']);self.assertEqual(unknown['photos'],[])
         with self.assertRaises(ValueError):self.app.aircraft_details('../etc/passwd','ETD1')
     def test_aircraft_thumbnails_cover_nearby_aircraft_and_alerts(self):
         self.app.aircraft=[{'hex':'89649d'},{'hex':'not-a-code'}]
